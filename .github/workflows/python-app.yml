@@ -41,3 +41,6 @@ jobs:
       - name: Lint with black
         run: |
           mise run lint
+      - name: Run tests
+        run: |
+          mise run test
