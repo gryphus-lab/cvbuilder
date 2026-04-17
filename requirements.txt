@@ -3,3 +3,4 @@ pdf2image>=1.16.0,<2.0
 pytesseract>=0.3.10,<1.0
 weasyprint>=68.0
 pytest>=9.0.3
+pytest-cov>=6.2.1

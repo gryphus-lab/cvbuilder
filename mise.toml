@@ -59,3 +59,8 @@ depends = ["bootstrap"]
 description = "Run tests with pytest"
 run = "pytest tests"
 depends = ["bootstrap"]
+
+[tasks.coverage]
+description = "Run tests with coverage report"
+run = "pytest tests --cov=. --cov-report=term-missing --cov-report=xml:coverage.xml"
+depends = ["bootstrap"]
