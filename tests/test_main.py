@@ -39,7 +39,9 @@ class TestMainCLIParse(unittest.TestCase):
             with patch.object(
                 sys, "argv", ["main.py", "parse", str(pdf_path), "-o", str(output_path)]
             ):
-                with patch("main.parse_cv_to_json", return_value=parsed_data) as mock_parse:
+                with patch(
+                    "main.parse_cv_to_json", return_value=parsed_data
+                ) as mock_parse:
                     with patch("main.save_to_json") as mock_save:
                         with patch("builtins.print") as mock_print:
                             cli_main.main()
@@ -54,7 +56,9 @@ class TestMainCLIBuild(unittest.TestCase):
     def test_build_exits_when_json_is_missing(self):
         missing_json = Path("/tmp/definitely-missing-cvbuilder-input.json")
 
-        with patch.object(sys, "argv", ["main.py", "build", "--json", str(missing_json)]):
+        with patch.object(
+            sys, "argv", ["main.py", "build", "--json", str(missing_json)]
+        ):
             with patch("builtins.print") as mock_print:
                 with self.assertRaises(SystemExit) as exc:
                     cli_main.main()
