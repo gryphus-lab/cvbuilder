@@ -17,6 +17,12 @@ MISE_TOML = REPO_ROOT / "mise.toml"
 
 
 def load_mise_config() -> dict:
+    """
+    Load the repository's mise.toml configuration and return it as a dictionary.
+    
+    Returns:
+        dict: Parsed TOML configuration from the file pointed to by `MISE_TOML`.
+    """
     with open(MISE_TOML, "rb") as f:
         return tomllib.load(f)
 
@@ -41,6 +47,11 @@ class TestBootstrapTask(unittest.TestCase):
     """Tests for the bootstrap task's updated macOS-conditional run command."""
 
     def setUp(self):
+        """
+        Load the repository's mise.toml into self.config and set self.bootstrap to the 'bootstrap' task entry.
+        
+        Prepares test fixtures by parsing the top-level configuration and extracting config["tasks"]["bootstrap"] for use in tests.
+        """
         self.config = load_mise_config()
         self.bootstrap = self.config["tasks"]["bootstrap"]
 
@@ -69,6 +80,11 @@ class TestBootstrapTask(unittest.TestCase):
         self.assertIn("ln -s $(brew --prefix)/lib/*", first_cmd)
 
     def test_bootstrap_first_command_is_darwin_guarded(self):
+        """
+        Ensure the first bootstrap command is guarded to run only on macOS.
+        
+        Asserts the command references `OSTYPE`, contains `darwin`, and uses `&&` to combine the conditional with the command.
+        """
         first_cmd = self.bootstrap["run"][0]
         self.assertIn("OSTYPE", first_cmd)
         self.assertIn("darwin", first_cmd)
@@ -88,6 +104,11 @@ class TestBootstrapTask(unittest.TestCase):
         self.assertEqual(second_cmd, "uv pip install -r requirements.txt")
 
     def test_bootstrap_has_description(self):
+        """
+        Check that the `bootstrap` task contains a `description` key.
+        
+        Asserts that the parsed `bootstrap` task dictionary includes a non-missing "description" entry.
+        """
         self.assertIn("description", self.bootstrap)
 
     # Regression: previous command was not OS-guarded; ensure OSTYPE check is present
@@ -100,6 +121,13 @@ class TestParseTaskDescription(unittest.TestCase):
     """Tests for the parse task's updated description."""
 
     def setUp(self):
+        """
+        Prepare the test fixture by loading the repository's mise.toml and storing the `parse` task.
+        
+        Sets:
+            self.config (dict): Parsed TOML configuration returned by load_mise_config().
+            self.parse_task (dict): The mapping for the `tasks.parse` entry from the loaded config.
+        """
         self.config = load_mise_config()
         self.parse_task = self.config["tasks"]["parse"]
 
@@ -112,7 +140,11 @@ class TestParseTaskDescription(unittest.TestCase):
         self.assertIn("results/cv_data.json", desc)
 
     def test_parse_description_does_not_use_bare_cv_data_json(self):
-        """Old description pointed at cv_data.json without the results/ prefix."""
+        """
+        Ensure the parse task description does not reference `cv_data.json` without the `results/` prefix.
+        
+        This test asserts the description does not contain the legacy marker "→ cv_data.json".
+        """
         desc = self.parse_task["description"]
         # The path should include 'results/' prefix
         self.assertNotIn("→ cv_data.json", desc)
@@ -133,6 +165,11 @@ class TestBuildTaskDescription(unittest.TestCase):
     """Tests for the build task's updated description."""
 
     def setUp(self):
+        """
+        Prepare the test fixture by loading the project's mise.toml and caching the `build` task.
+        
+        Loads the configuration into `self.config` (parsed TOML) and assigns `self.build_task` to `self.config["tasks"]["build"]` for use by each test.
+        """
         self.config = load_mise_config()
         self.build_task = self.config["tasks"]["build"]
 
@@ -168,6 +205,13 @@ class TestFullTask(unittest.TestCase):
     """Tests for the full task (parse + build) run array."""
 
     def setUp(self):
+        """
+        Prepare the test fixture by loading the mise.toml configuration and storing the "full" task.
+        
+        Sets:
+            self.config (dict): Parsed TOML configuration loaded from the repository.
+            self.full_task (dict): The `tasks["full"]` mapping from the loaded configuration.
+        """
         self.config = load_mise_config()
         self.full_task = self.config["tasks"]["full"]
 
