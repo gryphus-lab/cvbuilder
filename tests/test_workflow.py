@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent
-WORKFLOW_FILE = REPO_ROOT / ".github" / "workflows" / "python-app.yml"
+WORKFLOW_FILE = REPO_ROOT / ".github" / "workflows" / "ci.yml"
 
 # ---------------------------------------------------------------------------
 # Helpers
