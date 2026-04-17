@@ -1,3 +1,5 @@
+import logging
+
 import pytest
 from unittest.mock import patch, MagicMock
 from pathlib import Path
@@ -421,3 +423,84 @@ def test_build_write_pdf_called_with_string_version_of_path_object(
 
     args, _ = mock_html_instance.write_pdf.call_args
     assert isinstance(args[0], str)
+
+
+@pytest.fixture
+def builder():
+    return CVBuilder()
+
+
+@pytest.fixture
+def minimal_cv_data():
+    return {
+        "personal_info": {
+            "name": "Test",
+            "title": "Dev",
+            "address": "",
+            "phone": "",
+            "email": "",
+        },
+        "profile": "",
+        "strategic_impact": [],
+        "professional_experience": [],
+        "certificates_and_training": [],
+        "education": [],
+        "languages": [],
+        "competencies_and_skills": {},
+        "volunteering": [],
+    }
+
+
+def test_build_logs_warning_for_nonexistent_photo(
+    builder, minimal_cv_data, tmp_path, caplog
+):
+    """Test line 34: Logs a warning when photo_path does not exist."""
+    output_pdf = tmp_path / "output.pdf"
+    invalid_photo = tmp_path / "non_existent_image.jpg"
+
+    # Ensure WeasyPrint doesn't actually try to run
+    with patch("src.builder.cv_builder.HTML"):
+        with caplog.at_level(logging.WARNING):
+            builder.build(minimal_cv_data, output_pdf, photo_path=invalid_photo)
+
+    assert f"Photo path does not exist or is not a file: {invalid_photo}" in caplog.text
+    # Verify photo_url was reset to empty string (implied by no img tag in render if we were to check)
+
+
+def test_build_logs_error_on_path_resolution_failure(
+    builder, minimal_cv_data, tmp_path, caplog
+):
+    """Test line 36: Logs an error when an OSError occurs during path resolution."""
+    output_pdf = tmp_path / "output.pdf"
+    photo_path = "some_path.jpg"
+
+    with patch("src.builder.cv_builder.Path") as MockPath:
+        mock_photo_instance = MagicMock()
+        mock_photo_instance.expanduser.return_value = mock_photo_instance
+        mock_photo_instance.resolve.side_effect = OSError("Permission denied")
+
+        MockPath.side_effect = lambda x: (
+            mock_photo_instance if x == photo_path else Path(x)
+        )
+
+        with patch("src.builder.cv_builder.HTML"):
+            with caplog.at_level(logging.ERROR):
+                builder.build(minimal_cv_data, output_pdf, photo_path=photo_path)
+    assert (
+        "Failed to resolve photo path 'some_path.jpg': Permission denied" in caplog.text
+    )
+
+
+def test_build_logs_warning_for_directory_instead_of_file(
+    builder, minimal_cv_data, tmp_path, caplog
+):
+    """Test line 34 variation: Logs a warning when photo_path is a directory, not a file."""
+    output_pdf = tmp_path / "output.pdf"
+    dir_as_photo = tmp_path / "images_folder"
+    dir_as_photo.mkdir()
+
+    with patch("src.builder.cv_builder.HTML"):
+        with caplog.at_level(logging.WARNING):
+            builder.build(minimal_cv_data, output_pdf, photo_path=dir_as_photo)
+
+    assert "Photo path does not exist or is not a file" in caplog.text

@@ -31,7 +31,9 @@ class CVBuilder:
                 if photo_file.exists() and photo_file.is_file():
                     photo_url = photo_file.as_uri()
                 else:
-                    logger.warning(f"Photo path does not exist or is not a file: {photo_path}")
+                    logger.warning(
+                        f"Photo path does not exist or is not a file: {photo_path}"
+                    )
             except (OSError, RuntimeError) as e:
                 logger.error(f"Failed to resolve photo path '{photo_path}': {e}")
 
@@ -244,6 +246,8 @@ class CVBuilder:
 </html>
         """
 
-        env = Environment(loader=BaseLoader(), autoescape=select_autoescape(['html', 'xml']))
+        env = Environment(
+            loader=BaseLoader(), autoescape=select_autoescape(["html", "xml"])
+        )
         template = env.from_string(template_str)
         return template.render(cv=cv, photo=photo)
