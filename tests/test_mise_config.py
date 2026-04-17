@@ -270,5 +270,54 @@ class TestFullTask(unittest.TestCase):
         self.assertGreater(len(desc), 0)
 
 
+class TestBootstrapGuardCompleteness(unittest.TestCase):
+    """
+    Regression tests that verify the consolidated darwin-guard test covers
+    all required conditional markers as a single atomic assertion group.
+    """
+
+    def setUp(self):
+        self.config = load_mise_config()
+        self.first_cmd = self.config["tasks"]["bootstrap"]["run"][0]
+
+    def test_darwin_guard_has_opening_bracket_syntax(self):
+        """The conditional must use bash double-bracket [[ syntax."""
+        self.assertIn("[[", self.first_cmd)
+
+    def test_darwin_guard_closing_fi_keyword(self):
+        """The conditional block must be properly closed with 'fi'."""
+        self.assertIn("fi", self.first_cmd)
+
+    def test_darwin_guard_then_keyword(self):
+        """The conditional block must contain a 'then' clause."""
+        self.assertIn("then", self.first_cmd)
+
+    def test_darwin_guard_all_markers_present_together(self):
+        """All six guard markers must be present in the same command string."""
+        markers = ["OSTYPE", "darwin", "if [[", "then", "fi", "ln -s"]
+        for marker in markers:
+            self.assertIn(
+                marker,
+                self.first_cmd,
+                f"Expected marker '{marker}' missing from bootstrap first command",
+            )
+
+    def test_darwin_guard_if_precedes_fi(self):
+        """'if [[' must appear before 'fi' in the command string."""
+        if_pos = self.first_cmd.find("if [[")
+        fi_pos = self.first_cmd.rfind("fi")
+        self.assertLess(if_pos, fi_pos, "'if [[' must appear before 'fi'")
+
+    def test_bootstrap_first_command_is_multiline_or_compound(self):
+        """
+        The macOS guard command should span multiple logical parts
+        (at minimum more than one shell keyword), confirming it is not trivial.
+        """
+        keywords_found = sum(
+            1 for kw in ["if", "then", "fi"] if kw in self.first_cmd
+        )
+        self.assertGreaterEqual(keywords_found, 3)
+
+
 if __name__ == "__main__":
     unittest.main()
