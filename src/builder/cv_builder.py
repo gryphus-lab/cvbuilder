@@ -1,10 +1,13 @@
 import os
+import logging
 from pathlib import Path
 from typing import Dict, Any
 import jinja2
 import weasyprint
-from jinja2 import Environment, BaseLoader
+from jinja2 import Environment, BaseLoader, select_autoescape
 from weasyprint import HTML
+
+logger = logging.getLogger(__name__)
 
 
 class CVBuilder:
@@ -23,7 +26,14 @@ class CVBuilder:
 
         photo_url = ""
         if photo_path:
-            photo_url = Path(photo_path).resolve().as_uri()
+            try:
+                photo_file = Path(photo_path).expanduser().resolve()
+                if photo_file.exists() and photo_file.is_file():
+                    photo_url = photo_file.as_uri()
+                else:
+                    logger.warning(f"Photo path does not exist or is not a file: {photo_path}")
+            except (OSError, RuntimeError) as e:
+                logger.error(f"Failed to resolve photo path '{photo_path}': {e}")
 
         html_content = self._render_html(cv_data, photo_url)
 
@@ -234,6 +244,6 @@ class CVBuilder:
 </html>
         """
 
-        env = Environment(loader=BaseLoader())
+        env = Environment(loader=BaseLoader(), autoescape=select_autoescape(['html', 'xml']))
         template = env.from_string(template_str)
         return template.render(cv=cv, photo=photo)
