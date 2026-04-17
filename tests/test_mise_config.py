@@ -124,7 +124,7 @@ class TestParseTaskDescription(unittest.TestCase):
     def test_parse_description_is_non_empty_string(self):
         desc = self.parse_task["description"]
         self.assertIsInstance(desc, str)
-        self.assertTrue(len(desc) > 0)
+        self.assertGreater(len(desc), 0)
 
     def test_parse_task_run_command(self):
         self.assertEqual(self.parse_task["run"], "python main.py parse")
@@ -156,7 +156,7 @@ class TestBuildTaskDescription(unittest.TestCase):
     def test_build_description_is_non_empty_string(self):
         desc = self.build_task["description"]
         self.assertIsInstance(desc, str)
-        self.assertTrue(len(desc) > 0)
+        self.assertGreater(len(desc), 0)
 
     def test_build_task_run_command(self):
         self.assertEqual(self.build_task["run"], "python main.py build")

@@ -122,11 +122,11 @@ class TestWorkflowRawContent(unittest.TestCase):
     def test_step_name_setup_mise(self):
         self.assertIn("Setup mise", self.text)
 
-    # ----- Regression: no test step (workflow does not run pytest) -----
+    # ----- Regression: test step must exist -----
 
     def test_no_pytest_step(self):
-        """The workflow only lints; it should not contain a stray pytest invocation."""
-        self.assertNotIn("pytest", self.text)
+        """Workflow must execute tests."""
+        self.assertIn("pytest", self.text)
 
 
 # ---------------------------------------------------------------------------
