@@ -19,7 +19,7 @@ MISE_TOML = REPO_ROOT / "mise.toml"
 def load_mise_config() -> dict:
     """
     Load and parse the repository's `mise.toml` into a Python dict.
-    
+
     Returns:
         dict: Parsed TOML configuration.
     """
@@ -33,9 +33,9 @@ class MiseTestBase(unittest.TestCase):
     def assert_darwin_guarded(self, cmd):
         """
         Assert that the provided shell command is protected to run only on macOS.
-        
+
         Verifies the command string contains an OSTYPE check referencing "darwin" and includes the shell conditional markers `if [[`, `then`, and `fi`, indicating a macOS guard.
-        
+
         Parameters:
             cmd (str): Shell command text to validate; typically a task bootstrap command.
         """
@@ -74,7 +74,7 @@ class TestBootstrapTask(MiseTestBase):
     def setUp(self):
         """
         Prepare test fixtures by loading the repository's mise.toml and exposing the bootstrap task.
-        
+
         Sets self.config to the parsed TOML mapping and self.bootstrap to the mapping for the "bootstrap" task (config["tasks"]["bootstrap"]) for use by test methods.
         """
         self.config = load_mise_config()
@@ -97,7 +97,7 @@ class TestBootstrapTask(MiseTestBase):
     def test_bootstrap_run_has_two_commands(self):
         """
         Assert that the bootstrap task's `run` list contains exactly two commands.
-        
+
         This verifies the `bootstrap` task defines two sequential commands to execute during bootstrapping.
         """
         self.assertEqual(len(self.bootstrap["run"]), 2)
@@ -128,7 +128,7 @@ class TestBootstrapTask(MiseTestBase):
     def test_bootstrap_first_command_does_not_run_unconditionally(self):
         """
         Ensure the first bootstrap command is not an unguarded 'ln -s' symlink invocation.
-        
+
         Checks that, after stripping leading whitespace, the command does not start with "ln -s", ensuring the brew symlink is protected by an OS-type guard.
         """
         first_cmd = self.bootstrap["run"][0]
@@ -357,7 +357,7 @@ class TestBootstrapGuardOrdering(unittest.TestCase):
     def setUp(self):
         """
         Load the repository's mise.toml into self.config and store the first bootstrap run command in self.first_cmd.
-        
+
         Sets the following attributes on the test instance:
             config (dict): Parsed TOML configuration loaded from mise.toml.
             first_cmd (str): The first command string from `tasks.bootstrap.run`.
@@ -421,7 +421,7 @@ class TestAdditionalTasks(unittest.TestCase):
     def setUp(self):
         """
         Load and cache the repository's parsed mise.toml and its tasks mapping for use by tests.
-        
+
         Sets:
             self.config: the parsed TOML configuration as a dict.
             self.tasks: shortcut reference to self.config["tasks"].

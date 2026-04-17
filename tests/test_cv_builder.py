@@ -10,13 +10,13 @@ from src.builder.cv_builder import CVBuilder
 def sample_cv_data():
     """
     Provide a minimal, valid CV dictionary for use in tests.
-    
+
     The returned dictionary contains the top-level keys expected by the test suite:
     `personal_info`, `profile`, `strategic_impact`, `professional_experience`,
     `certificates_and_training`, `education`, `languages`, `competencies_and_skills`,
     and `volunteering`. Values are placeholder strings or minimal entries suitable
     for rendering and assertions in unit tests.
-    
+
     Returns:
         dict: A sample CV payload with populated `personal_info` and minimal entries
         for each section.
@@ -64,9 +64,9 @@ def builder():
 def minimal_cv_payload():
     """
     Return a minimal CV dictionary containing all required top-level keys with empty or placeholder values.
-    
+
     This fixture is intended for boundary and regression tests. Callers should copy or deepcopy the returned dict before mutating it.
-    
+
     Returns:
         dict: Minimal CV data structure where sections are empty lists/dicts or minimal placeholder strings.
     """

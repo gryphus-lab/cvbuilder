@@ -1,7 +1,15 @@
-# cvbuilder
+# CV Parser and Builder
 
-Parse a CV PDF into structured JSON and generate a styled PDF CV from that data.
+Parse a CV PDF with [Tesseract OCR](https://tesseract-ocr.github.io/) into structured JSON and generate a styled PDF CV from that data.
 
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=gryphus-lab_cvbuilder&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=gryphus-lab_cvbuilder)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=gryphus-lab_cvbuilder&metric=coverage)](https://sonarcloud.io/summary/new_code?id=gryphus-lab_cvbuilder)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=gryphus-lab_cvbuilder&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=gryphus-lab_cvbuilder)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=gryphus-lab_cvbuilder&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=gryphus-lab_cvbuilder)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=gryphus-lab_cvbuilder&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=gryphus-lab_cvbuilder)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=gryphus-lab_cvbuilder&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=gryphus-lab_cvbuilder)
+[![mise](https://img.shields.io/badge/managed%20with-mise-6f42c1)](https://mise.jdx.dev/)
+[![Python](https://img.shields.io/badge/Python-3.14-2496ED?logo=python&logoColor=white)](https://www.python.org/)
 ## Requirements
 
 - [mise](https://mise.jdx.dev/)
