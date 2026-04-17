@@ -20,7 +20,7 @@ WORKFLOW_FILE = REPO_ROOT / ".github" / "workflows" / "ci.yml"
 
 def _raw_text() -> str:
     """
-    Read the repository's CI workflow file and return its contents decoded as UTF-8.
+    Get the raw UTF-8 text of the repository CI workflow file.
     
     Returns:
         The workflow file contents as a UTF-8 decoded string.
@@ -30,13 +30,13 @@ def _raw_text() -> str:
 
 def _load_yaml() -> dict:
     """
-    Load and parse the repository workflow YAML into a Python dictionary.
+    Load and parse the repository's workflow YAML file into a Python mapping.
     
     Returns:
-        dict: Parsed YAML mapping representing the workflow file.
+        dict: Parsed YAML mapping representing the workflow configuration.
     
     Raises:
-        ImportError: If the `yaml` package is not installed.
+        ImportError: If the `yaml` (PyYAML) package is not installed.
     """
     import yaml  # type: ignore
 
@@ -100,9 +100,9 @@ class TestWorkflowRawContent(unittest.TestCase):
 
     def test_runs_on_ubuntu_latest(self):
         """
-        Asserts the workflow is configured to run on the "ubuntu-latest" runner.
+        Verify the workflow is configured to run on the ubuntu-latest runner.
         
-        Checks that the raw workflow text contains the substring "ubuntu-latest".
+        Asserts that the raw workflow file text contains "ubuntu-latest".
         """
         self.assertIn("ubuntu-latest", self.text)
 
@@ -132,9 +132,9 @@ class TestWorkflowRawContent(unittest.TestCase):
 
     def test_step_runs_mise_bootstrap(self):
         """
-        Asserts the workflow's raw text contains the command "mise run bootstrap".
+        Verify the workflow includes a step that runs `mise run bootstrap`.
         
-        Checks that the CI workflow includes a step which invokes `mise run bootstrap`.
+        Asserts the raw workflow text contains the substring "mise run bootstrap".
         """
         self.assertIn("mise run bootstrap", self.text)
 
@@ -175,7 +175,11 @@ class TestWorkflowRawContent(unittest.TestCase):
     # ----- Regression: test step must exist -----
 
     def test_no_pytest_step(self):
-        """Workflow must execute tests."""
+        """
+        Ensure the workflow invokes pytest.
+        
+        Asserts that the workflow's raw text contains the substring "pytest".
+        """
         self.assertIn("pytest", self.text)
 
 
@@ -215,9 +219,7 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
 
     def test_on_pull_request_branches(self):
         """
-        Ensure the workflow's `pull_request` trigger includes the `main` branch.
-
-        Asserts that `"main"` appears in the parsed YAML at `on.pull_request.branches`.
+        Check that the workflow's `pull_request` trigger includes the `main` branch.
         """
         self.assertIn("main", self.cfg["on"]["pull_request"]["branches"])
 
@@ -237,9 +239,7 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
 
     def test_job_build_permissions_contents_write(self):
         """
-        Ensure the build job grants write access to repository contents.
-        
-        Asserts that self.cfg["jobs"]["build"]["permissions"]["contents"] == "write".
+        Ensure the `build` job grants `"write"` access to the repository `contents` permission.
         """
         build_perms = self.cfg["jobs"]["build"]["permissions"]
         self.assertEqual(build_perms["contents"], "write")
