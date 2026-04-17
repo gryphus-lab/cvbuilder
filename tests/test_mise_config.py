@@ -35,6 +35,9 @@ class TestMiseTomlParses(unittest.TestCase):
         self.assertIsInstance(config, dict)
 
     def test_tasks_section_exists(self):
+        """
+        Checks that the repository's mise.toml contains a top-level "tasks" section.
+        """
         config = load_mise_config()
         self.assertIn("tasks", config)
 
@@ -56,6 +59,11 @@ class TestBootstrapTask(unittest.TestCase):
         self.bootstrap = self.config["tasks"]["bootstrap"]
 
     def test_bootstrap_task_exists(self):
+        """
+        Verify the configuration contains a 'bootstrap' entry under the top-level 'tasks' section.
+        
+        This test fails if 'bootstrap' is not present in self.config["tasks"].
+        """
         self.assertIn("bootstrap", self.config["tasks"])
 
     def test_bootstrap_run_is_list(self):
@@ -119,6 +127,11 @@ class TestBootstrapTask(unittest.TestCase):
 
     # Regression: previous command was not OS-guarded; ensure OSTYPE check is present
     def test_bootstrap_ostype_check_references_darwin(self):
+        """
+        Asserts that the first command in the bootstrap task's `run` list references 'darwin'.
+        
+        Verifies the bootstrap task's initial run command includes the substring 'darwin', ensuring an OSTYPE check for macOS is present.
+        """
         first_cmd = self.bootstrap["run"][0]
         self.assertIn("darwin", first_cmd)
 
@@ -172,9 +185,9 @@ class TestBuildTaskDescription(unittest.TestCase):
 
     def setUp(self):
         """
-        Prepare the test fixture by loading the project's mise.toml and caching the `build` task.
-
-        Loads the configuration into `self.config` (parsed TOML) and assigns `self.build_task` to `self.config["tasks"]["build"]` for use by each test.
+        Load the project's mise.toml and cache the `build` task for use by tests.
+        
+        Assigns the parsed TOML mapping to `self.config` and `self.build_task` to `self.config["tasks"]["build"]`.
         """
         self.config = load_mise_config()
         self.build_task = self.config["tasks"]["build"]
@@ -212,11 +225,11 @@ class TestFullTask(unittest.TestCase):
 
     def setUp(self):
         """
-        Prepare the test fixture by loading the mise.toml configuration and storing the "full" task.
-
-        Sets:
-            self.config (dict): Parsed TOML configuration loaded from the repository.
-            self.full_task (dict): The `tasks["full"]` mapping from the loaded configuration.
+        Prepare the test fixture by loading the repository's mise.toml and storing its "full" task.
+        
+        Attributes:
+            config (dict): Parsed TOML configuration.
+            full_task (dict): Mapping for the `tasks["full"]` entry.
         """
         self.config = load_mise_config()
         self.full_task = self.config["tasks"]["full"]
