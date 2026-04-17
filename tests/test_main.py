@@ -29,9 +29,9 @@ class TestMainCLIParse(unittest.TestCase):
 
     def test_parse_success_calls_parser_and_saves_json(self):
         """
-        Verifies that the `parse` CLI command calls the parser and saves the resulting JSON.
-
-        Creates a temporary PDF and output path, mocks `parse_cv_to_json` to return sample parsed data and `save_to_json` to intercept saving, then runs the CLI. Asserts that `parse_cv_to_json` is called with the resolved PDF path, `save_to_json` is called with the parsed data and output path, and that printed messages include the parsing and saved confirmations.
+        Test that the `parse` CLI command invokes the parser and writes the parsed JSON to the specified output.
+        
+        Asserts that the parser is called with the resolved PDF path, the JSON saver is called with the parsed data and output path, and that user-facing output includes the parsing start and JSON saved messages.
         """
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
@@ -59,6 +59,11 @@ class TestMainCLIParse(unittest.TestCase):
 
 class TestMainCLIBuild(unittest.TestCase):
     def test_build_exits_when_json_is_missing(self):
+        """
+        Verifies that `main()` exits with code 1 and prints guidance when the provided JSON file is missing.
+        
+        Sets the CLI to `build --json <missing_path>`, calls `main()`, and asserts that it raises `SystemExit` with code `1` and prints an error containing the resolved missing JSON path and the hint `   Run: python main.py parse   first`.
+        """
         with tempfile.TemporaryDirectory() as tmp_dir:
             missing_json = Path(tmp_dir) / "missing_input.json"
 
