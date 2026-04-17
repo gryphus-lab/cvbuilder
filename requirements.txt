@@ -2,3 +2,4 @@ Jinja2
 pdf2image
 pytesseract
 weasyprint
+pytest
