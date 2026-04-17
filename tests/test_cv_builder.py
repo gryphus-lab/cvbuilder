@@ -7,21 +7,15 @@ from src.builder.cv_builder import CVBuilder
 @pytest.fixture
 def sample_cv_data():
     """
-    Provide a minimal, valid CV data dictionary used by tests.
-
-    The dictionary contains these top-level keys:
-    - personal_info: mapping with name, title, address, phone, and email
-    - profile: short summary string
-    - strategic_impact: list of impact strings
-    - professional_experience: list of job mappings (title, company, location, dates, description, achievements)
-    - certificates_and_training: list of certificate/training strings
-    - education: list of mappings (institution, degree)
-    - languages: list of language strings
-    - competencies_and_skills: mapping from competency category to list of skills
-    - volunteering: list of volunteering entries
-
+    Return a minimal, valid CV data dictionary used by tests.
+    
+    The dictionary includes these top-level keys: personal_info, profile, strategic_impact,
+    professional_experience, certificates_and_training, education, languages,
+    competencies_and_skills, and volunteering.
+    
     Returns:
-        dict: A sample CV data structure matching the layout described above.
+        dict: Sample CV data matching the test-suite layout, containing placeholder
+        values for personal information and minimal entries for each section.
     """
     return {
         "personal_info": {
@@ -231,7 +225,9 @@ def test_render_html_returns_string(builder, sample_cv_data):
 
 
 def test_render_html_is_valid_html_document(builder, sample_cv_data):
-    """Output must be a complete HTML document with doctype and html tags."""
+    """
+    Verify that the rendered HTML output is a complete HTML document including DOCTYPE and HTML tags.
+    """
     html = builder._render_html(sample_cv_data)
     assert "<!DOCTYPE html>" in html
     assert "<html>" in html
