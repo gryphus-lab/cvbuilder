@@ -31,10 +31,10 @@ def _raw_text() -> str:
 def _load_yaml() -> dict:
     """
     Load and parse the repository workflow YAML into a Python dictionary.
-    
+
     Returns:
         dict: Parsed YAML content from the workflow file.
-    
+
     Raises:
         ImportError: If the `yaml` module is not installed.
     """
@@ -113,7 +113,7 @@ class TestWorkflowRawContent(unittest.TestCase):
     def test_step_runs_mise_info(self):
         """
         Assert the workflow file contains the "mise run info" command.
-        
+
         Fails the test if the substring "mise run info" is not present in the workflow's raw text.
         """
         self.assertIn("mise run info", self.text)
@@ -193,7 +193,7 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
     def test_top_level_permissions_contents_read(self):
         """
         Assert that the workflow's top-level `permissions.contents` is set to "read".
-        
+
         Raises an assertion failure if `self.cfg["permissions"]["contents"]` is not equal to `"read"`.
         """
         self.assertEqual(self.cfg["permissions"]["contents"], "read")
@@ -204,7 +204,7 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
     def test_job_build_permissions_contents_write(self):
         """
         Asserts that the workflow's `build` job grants write access to repository contents.
-        
+
         Verifies that `self.cfg["jobs"]["build"]["permissions"]["contents"]` is equal to `"write"`.
         """
         build_perms = self.cfg["jobs"]["build"]["permissions"]
@@ -250,7 +250,7 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
     def test_checkout_step_is_first(self):
         """
         Check that the first step of the `build` job uses the checkout action.
-        
+
         Verifies that the `uses` value of the first entry in `self.cfg["jobs"]["build"]["steps"]` contains the substring "actions/checkout".
         """
         first = self.cfg["jobs"]["build"]["steps"][0]

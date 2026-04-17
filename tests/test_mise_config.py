@@ -61,7 +61,7 @@ class TestBootstrapTask(unittest.TestCase):
     def test_bootstrap_task_exists(self):
         """
         Verify the configuration contains a 'bootstrap' entry under the top-level 'tasks' section.
-        
+
         This test fails if 'bootstrap' is not present in self.config["tasks"].
         """
         self.assertIn("bootstrap", self.config["tasks"])
@@ -129,7 +129,7 @@ class TestBootstrapTask(unittest.TestCase):
     def test_bootstrap_ostype_check_references_darwin(self):
         """
         Asserts that the first command in the bootstrap task's `run` list references 'darwin'.
-        
+
         Verifies the bootstrap task's initial run command includes the substring 'darwin', ensuring an OSTYPE check for macOS is present.
         """
         first_cmd = self.bootstrap["run"][0]
@@ -186,7 +186,7 @@ class TestBuildTaskDescription(unittest.TestCase):
     def setUp(self):
         """
         Load the project's mise.toml and cache the `build` task for use by tests.
-        
+
         Assigns the parsed TOML mapping to `self.config` and `self.build_task` to `self.config["tasks"]["build"]`.
         """
         self.config = load_mise_config()
@@ -226,7 +226,7 @@ class TestFullTask(unittest.TestCase):
     def setUp(self):
         """
         Prepare the test fixture by loading the repository's mise.toml and storing its "full" task.
-        
+
         Attributes:
             config (dict): Parsed TOML configuration.
             full_task (dict): Mapping for the `tasks["full"]` entry.
