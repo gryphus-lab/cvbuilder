@@ -18,13 +18,32 @@ MISE_TOML = REPO_ROOT / "mise.toml"
 
 def load_mise_config() -> dict:
     """
-    Load and parse the repository's mise.toml configuration from the configured MISE_TOML path.
-
+    Load and parse the repository's `mise.toml` into a Python dict.
+    
     Returns:
-        dict: Parsed TOML configuration mapping.
+        dict: Parsed TOML configuration.
     """
     with open(MISE_TOML, "rb") as f:
         return tomllib.load(f)
+
+
+class MiseTestBase(unittest.TestCase):
+    """Base class for mise.toml tests with shared helper methods."""
+
+    def assert_darwin_guarded(self, cmd):
+        """
+        Assert that the provided shell command is protected to run only on macOS.
+        
+        Verifies the command string contains an OSTYPE check referencing "darwin" and includes the shell conditional markers `if [[`, `then`, and `fi`, indicating a macOS guard.
+        
+        Parameters:
+            cmd (str): Shell command text to validate; typically a task bootstrap command.
+        """
+        self.assertRegex(cmd, r"\bOSTYPE\b")
+        self.assertRegex(cmd, r"darwin")
+        self.assertRegex(cmd, r"\bif\s+\[\[")
+        self.assertRegex(cmd, r"\bthen\b")
+        self.assertRegex(cmd, r"\bfi\b")
 
 
 class TestMiseTomlParses(unittest.TestCase):
@@ -42,18 +61,21 @@ class TestMiseTomlParses(unittest.TestCase):
         self.assertIn("tasks", config)
 
     def test_tools_section_exists(self):
+        """
+        Verify the parsed mise.toml contains a top-level "tools" section.
+        """
         config = load_mise_config()
         self.assertIn("tools", config)
 
 
-class TestBootstrapTask(unittest.TestCase):
+class TestBootstrapTask(MiseTestBase):
     """Tests for the bootstrap task's updated macOS-conditional run command."""
 
     def setUp(self):
         """
-        Prepare test fixtures by loading the repository's mise.toml and extracting the 'bootstrap' task.
-
-        Sets self.config to the parsed TOML mapping and self.bootstrap to config["tasks"]["bootstrap"] for use by test methods.
+        Prepare test fixtures by loading the repository's mise.toml and exposing the bootstrap task.
+        
+        Sets self.config to the parsed TOML mapping and self.bootstrap to the mapping for the "bootstrap" task (config["tasks"]["bootstrap"]) for use by test methods.
         """
         self.config = load_mise_config()
         self.bootstrap = self.config["tasks"]["bootstrap"]
@@ -73,47 +95,41 @@ class TestBootstrapTask(unittest.TestCase):
         self.assertIsInstance(self.bootstrap["run"], list)
 
     def test_bootstrap_run_has_two_commands(self):
+        """
+        Assert that the bootstrap task's `run` list contains exactly two commands.
+        
+        This verifies the `bootstrap` task defines two sequential commands to execute during bootstrapping.
+        """
         self.assertEqual(len(self.bootstrap["run"]), 2)
-
-    def test_bootstrap_first_command_has_macos_ostype_guard(self):
-        """
-        Verify the first bootstrap run command contains an OSTYPE-based 'darwin' conditional (a shell [[ ... ]] test).
-        """
-        first_cmd = self.bootstrap["run"][0]
-        self.assertIn("OSTYPE", first_cmd)
-        self.assertIn("darwin", first_cmd)
-        self.assertIn("[[", first_cmd)
-
-    def test_bootstrap_first_command_uses_conditional_and(self):
-        """The macOS guard is implemented as an if/then block around the symlink."""
-        first_cmd = self.bootstrap["run"][0]
-        self.assertIn("if [[", first_cmd)
-        self.assertIn("then", first_cmd)
-        self.assertIn("fi", first_cmd)
-
-    def test_bootstrap_first_command_contains_brew_symlink(self):
-        first_cmd = self.bootstrap["run"][0]
-        self.assertIn("ln -s", first_cmd)
-        self.assertIn("$(brew --prefix)/lib/*", first_cmd)
-        self.assertIn("sysconfig.get_path", first_cmd)
 
     def test_bootstrap_first_command_is_darwin_guarded(self):
         """
-        Assert the first bootstrap run command is guarded to run only on macOS.
+        Verify the first bootstrap run command is guarded to execute only on macOS.
 
-        Checks that the command references `OSTYPE`, contains `darwin`, and includes the `if [[`/`fi` conditional markers.
+        Asserts the command references `OSTYPE`, contains `darwin`, and includes the `if [[`, `then`, and `fi` conditional markers.
         """
         first_cmd = self.bootstrap["run"][0]
-        self.assertIn("OSTYPE", first_cmd)
-        self.assertIn("darwin", first_cmd)
-        self.assertIn("if [[", first_cmd)
-        self.assertIn("fi", first_cmd)
+        self.assert_darwin_guarded(first_cmd)
+
+    def test_bootstrap_first_command_contains_brew_symlink(self):
+        """
+        Assert that the first command in the bootstrap task's `run` list creates a Homebrew symlink and references the Python sysconfig path.
+
+        The test checks that the command string contains:
+        - the symlink invocation `"ln -sf"`,
+        - the Homebrew library prefix `"$(brew --prefix)/lib/*"`,
+        - and a reference to `sysconfig.get_path`.
+        """
+        first_cmd = self.bootstrap["run"][0]
+        self.assertIn("ln -sf", first_cmd)
+        self.assertIn("$(brew --prefix)/lib/*", first_cmd)
+        self.assertIn("sysconfig.get_path", first_cmd)
 
     def test_bootstrap_first_command_does_not_run_unconditionally(self):
         """
-        Assert the first bootstrap run command is not an unguarded 'ln -s' invocation.
-
-        Ensures the brew symlink command is protected by an OS-type guard and not executed unconditionally.
+        Ensure the first bootstrap command is not an unguarded 'ln -s' symlink invocation.
+        
+        Checks that, after stripping leading whitespace, the command does not start with "ln -s", ensuring the brew symlink is protected by an OS-type guard.
         """
         first_cmd = self.bootstrap["run"][0]
         # Must NOT start with bare ln -s (without a guard)
@@ -283,6 +299,205 @@ class TestFullTask(unittest.TestCase):
         desc = self.full_task["description"]
         self.assertIsInstance(desc, str)
         self.assertGreater(len(desc), 0)
+
+
+class TestBootstrapGuardCompleteness(MiseTestBase):
+    """
+    Regression tests that verify the consolidated darwin-guard test covers
+    all required conditional markers as a single atomic assertion group.
+    """
+
+    def setUp(self):
+        """
+        Prepare test fixture by loading the repository's mise.toml configuration and storing the first command from the bootstrap task.
+
+        The parsed TOML mapping is stored on `self.config`. The first bootstrap task command (the first element of `config["tasks"]["bootstrap"]["run"]`) is stored on `self.first_cmd`.
+        """
+        self.config = load_mise_config()
+        self.first_cmd = self.config["tasks"]["bootstrap"]["run"][0]
+
+    def test_darwin_guard_has_opening_bracket_syntax(self):
+        """The conditional must use bash double-bracket [[ syntax."""
+        self.assertIn("[[", self.first_cmd)
+
+    def test_darwin_guard_closing_fi_keyword(self):
+        """The conditional block must be properly closed with 'fi'."""
+        self.assertIn("fi", self.first_cmd)
+
+    def test_darwin_guard_then_keyword(self):
+        """The conditional block must contain a 'then' clause."""
+        self.assertIn("then", self.first_cmd)
+
+    def test_darwin_guard_all_markers_present_together(self):
+        """All six guard markers must be present in the same command string."""
+        self.assert_darwin_guarded(self.first_cmd)
+
+    def test_darwin_guard_if_precedes_fi(self):
+        """'if [[' must appear before 'fi' in the command string."""
+        if_pos = self.first_cmd.find("if [[")
+        fi_pos = self.first_cmd.rfind("fi")
+        self.assertLess(if_pos, fi_pos, "'if [[' must appear before 'fi'")
+
+    def test_bootstrap_first_command_is_multiline_or_compound(self):
+        """
+        Assert the macOS guard command contains the shell keywords "if", "then", and "fi".
+
+        This ensures the first bootstrap command is a compound/multiline guard rather than a trivial single-word command by requiring all three shell markers to be present.
+        """
+        keywords_found = sum(1 for kw in ["if", "then", "fi"] if kw in self.first_cmd)
+        self.assertGreaterEqual(keywords_found, 3)
+
+
+class TestBootstrapGuardOrdering(unittest.TestCase):
+    """
+    Structural ordering tests for the bootstrap darwin guard command.
+    Verifies that shell keywords appear in the correct sequence.
+    """
+
+    def setUp(self):
+        """
+        Load the repository's mise.toml into self.config and store the first bootstrap run command in self.first_cmd.
+        
+        Sets the following attributes on the test instance:
+            config (dict): Parsed TOML configuration loaded from mise.toml.
+            first_cmd (str): The first command string from `tasks.bootstrap.run`.
+        """
+        self.config = load_mise_config()
+        self.first_cmd = self.config["tasks"]["bootstrap"]["run"][0]
+
+    def test_then_appears_between_if_and_fi(self):
+        """'then' must appear after 'if [[' and before 'fi'."""
+        if_pos = self.first_cmd.find("if [[")
+        then_pos = self.first_cmd.find("then")
+        fi_pos = self.first_cmd.rfind("fi")
+        self.assertNotEqual(if_pos, -1, "'if [[' must exist in command")
+        self.assertNotEqual(then_pos, -1, "'then' must exist in command")
+        self.assertNotEqual(fi_pos, -1, "'fi' must exist in command")
+        self.assertLess(if_pos, then_pos, "'if [[' must precede 'then'")
+        self.assertLess(then_pos, fi_pos, "'then' must precede 'fi'")
+
+    def test_ln_s_appears_after_then(self):
+        """The 'ln -s' command must appear after the 'then' keyword."""
+        then_pos = self.first_cmd.find("then")
+        ln_pos = self.first_cmd.find("ln -s")
+        self.assertNotEqual(then_pos, -1, "'then' must exist in command")
+        self.assertNotEqual(ln_pos, -1, "'ln -s' must exist in command")
+        self.assertLess(then_pos, ln_pos, "'then' must appear before 'ln -s'")
+
+    def test_ln_s_appears_before_fi(self):
+        """The 'ln -s' command must appear before the closing 'fi'."""
+        ln_pos = self.first_cmd.find("ln -s")
+        fi_pos = self.first_cmd.rfind("fi")
+        self.assertNotEqual(ln_pos, -1, "'ln -s' must exist in command")
+        self.assertNotEqual(fi_pos, -1, "'fi' must exist in command")
+        self.assertLess(ln_pos, fi_pos, "'ln -s' must appear before 'fi'")
+
+    def test_ostype_check_appears_before_ln_s(self):
+        """The OSTYPE variable reference must precede the 'ln -s' command."""
+        ostype_pos = self.first_cmd.find("OSTYPE")
+        ln_pos = self.first_cmd.find("ln -s")
+        self.assertNotEqual(ostype_pos, -1, "'OSTYPE' must exist in command")
+        self.assertNotEqual(ln_pos, -1, "'ln -s' must exist in command")
+        self.assertLess(ostype_pos, ln_pos, "OSTYPE check must appear before 'ln -s'")
+
+    def test_second_command_uses_uv(self):
+        """The second bootstrap run command must invoke uv."""
+        second_cmd = self.config["tasks"]["bootstrap"]["run"][1]
+        self.assertIn("uv", second_cmd)
+
+    def test_bootstrap_description_is_non_empty_string(self):
+        """The bootstrap task must have a non-empty string description."""
+        desc = self.config["tasks"]["bootstrap"]["description"]
+        self.assertIsInstance(desc, str)
+        self.assertGreater(len(desc), 0)
+
+
+class TestAdditionalTasks(unittest.TestCase):
+    """
+    Tests for task entries that exist in mise.toml but are not covered by
+    the existing test classes.
+    """
+
+    def setUp(self):
+        """
+        Load and cache the repository's parsed mise.toml and its tasks mapping for use by tests.
+        
+        Sets:
+            self.config: the parsed TOML configuration as a dict.
+            self.tasks: shortcut reference to self.config["tasks"].
+        """
+        self.config = load_mise_config()
+        self.tasks = self.config["tasks"]
+
+    def test_info_task_exists(self):
+        """The 'info' task must be defined in mise.toml."""
+        self.assertIn("info", self.tasks)
+
+    def test_info_task_has_description(self):
+        """The 'info' task must have a non-empty description."""
+        self.assertIn("info", self.tasks)
+        self.assertIn("description", self.tasks["info"])
+        desc = self.tasks["info"]["description"]
+        self.assertIsInstance(desc, str)
+        self.assertGreater(len(desc), 0)
+
+    def test_lint_task_exists(self):
+        """The 'lint' task must be defined in mise.toml."""
+        self.assertIn("lint", self.tasks)
+
+    def test_lint_task_depends_on_bootstrap(self):
+        """The 'lint' task must declare 'bootstrap' as a dependency."""
+        self.assertIn("lint", self.tasks)
+        self.assertIn("bootstrap", self.tasks["lint"].get("depends", []))
+
+    def test_format_task_exists(self):
+        """The 'format' task must be defined in mise.toml."""
+        self.assertIn("format", self.tasks)
+
+    def test_test_task_exists(self):
+        """The 'test' task must be defined in mise.toml."""
+        self.assertIn("test", self.tasks)
+
+    def test_test_task_run_invokes_pytest(self):
+        """The 'test' task run command must invoke pytest."""
+        self.assertIn("test", self.tasks)
+        self.assertIn("run", self.tasks["test"])
+        self.assertIn("pytest", self.tasks["test"]["run"])
+
+    def test_coverage_task_exists(self):
+        """The 'coverage' task must be defined in mise.toml."""
+        self.assertIn("coverage", self.tasks)
+
+    def test_coverage_task_includes_cov_flag(self):
+        """The 'coverage' task run command must include a --cov flag."""
+        self.assertIn("coverage", self.tasks)
+        self.assertIn("run", self.tasks["coverage"])
+        self.assertIn("--cov", self.tasks["coverage"]["run"])
+
+    def test_full_task_run_is_not_empty(self):
+        """The 'full' task run list must not be empty."""
+        self.assertIn("full", self.tasks)
+        self.assertIn("run", self.tasks["full"])
+        run = self.tasks["full"]["run"]
+        self.assertGreater(len(run), 0)
+
+    def test_all_expected_tasks_are_present(self):
+        """All nine canonical tasks must exist in the tasks section."""
+        expected = {
+            "bootstrap",
+            "info",
+            "parse",
+            "build",
+            "full",
+            "lint",
+            "format",
+            "test",
+            "coverage",
+        }
+        for task_name in expected:
+            self.assertIn(
+                task_name, self.tasks, f"Task '{task_name}' missing from mise.toml"
+            )
 
 
 if __name__ == "__main__":
