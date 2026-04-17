@@ -55,11 +55,36 @@ def sample_cv_data():
 def builder():
     """
     Provide a reusable CVBuilder instance for tests.
-    
+
     Returns:
         CVBuilder: A new CVBuilder instance.
     """
     return CVBuilder()
+
+
+@pytest.fixture
+def minimal_cv_payload():
+    """
+    Provide a minimal CV data dictionary with empty sections.
+
+    This fixture is useful for boundary/regression tests that need a bare-minimum
+    CV structure without extensive content. Tests should copy() or deepcopy() the
+    returned dict if they need to modify it.
+
+    Returns:
+        dict: A minimal CV data structure with all required keys but minimal content.
+    """
+    return {
+        "personal_info": {"name": "A", "title": "B", "address": "C", "phone": "D", "email": "e@f.g"},
+        "profile": "Profile text",
+        "strategic_impact": [],
+        "professional_experience": [],
+        "certificates_and_training": [],
+        "education": [],
+        "languages": [],
+        "competencies_and_skills": {},
+        "volunteering": [],
+    }
 
 
 ## --- Unit Tests ---
@@ -282,37 +307,18 @@ def test_cv_builder_constructor_requires_no_arguments():
     assert isinstance(instance, CVBuilder)
 
 
-def test_render_html_empty_strategic_impact(builder):
+def test_render_html_empty_strategic_impact(builder, minimal_cv_payload):
     """Rendering with an empty strategic_impact list must not raise."""
-    data = {
-        "personal_info": {"name": "A", "title": "B", "address": "C", "phone": "D", "email": "e@f.g"},
-        "profile": "Profile text",
-        "strategic_impact": [],
-        "professional_experience": [],
-        "certificates_and_training": [],
-        "education": [],
-        "languages": [],
-        "competencies_and_skills": {},
-        "volunteering": [],
-    }
+    data = minimal_cv_payload.copy()
     html = builder._render_html(data)
     assert isinstance(html, str)
     assert "STRATEGIC IMPACT" in html
 
 
-def test_render_html_empty_professional_experience(builder):
+def test_render_html_empty_professional_experience(builder, minimal_cv_payload):
     """An empty professional_experience list must render without error."""
-    data = {
-        "personal_info": {"name": "X", "title": "Y", "address": "Z", "phone": "0", "email": "a@b.c"},
-        "profile": "",
-        "strategic_impact": [],
-        "professional_experience": [],
-        "certificates_and_training": [],
-        "education": [],
-        "languages": [],
-        "competencies_and_skills": {},
-        "volunteering": [],
-    }
+    data = minimal_cv_payload.copy()
+    data["profile"] = ""
     html = builder._render_html(data)
     assert "PROFESSIONAL EXPERIENCE" in html
 
