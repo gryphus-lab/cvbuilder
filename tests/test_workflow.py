@@ -20,10 +20,10 @@ WORKFLOW_FILE = REPO_ROOT / ".github" / "workflows" / "ci.yml"
 
 def _raw_text() -> str:
     """
-    Return the UTF-8 decoded contents of the repository's CI workflow file.
-
+    Read the repository's CI workflow file and return its contents decoded as UTF-8.
+    
     Returns:
-        str: The workflow file contents as a UTF-8 string.
+        The workflow file contents as a UTF-8 decoded string.
     """
     return WORKFLOW_FILE.read_text(encoding="utf-8")
 
@@ -31,12 +31,12 @@ def _raw_text() -> str:
 def _load_yaml() -> dict:
     """
     Load and parse the repository workflow YAML into a Python dictionary.
-
+    
     Returns:
-        dict: Parsed YAML content from the workflow file.
-
+        dict: Parsed YAML mapping representing the workflow file.
+    
     Raises:
-        ImportError: If the `yaml` module is not installed.
+        ImportError: If the `yaml` package is not installed.
     """
     import yaml  # type: ignore
 
@@ -51,6 +51,11 @@ def _load_yaml() -> dict:
 
 class TestWorkflowFileExists(unittest.TestCase):
     def test_workflow_file_exists(self):
+        """
+        Asserts the repository CI workflow file exists at the expected path.
+        
+        If the file is missing, the test fails with an assertion message that includes the file path.
+        """
         self.assertTrue(
             WORKFLOW_FILE.exists(), f"Workflow file not found: {WORKFLOW_FILE}"
         )
@@ -73,7 +78,7 @@ class TestWorkflowRawContent(unittest.TestCase):
     def test_triggers_on_push_to_main(self):
         """
         Assert the workflow's raw YAML configures a push trigger for the "main" branch.
-
+        
         Checks that the loaded raw workflow text contains a `branches: ["main"]` entry, allowing for surrounding whitespace variations.
         """
         self.assertRegex(self.text, r'branches:\s*\[\s*"main"\s*\]')
@@ -84,11 +89,21 @@ class TestWorkflowRawContent(unittest.TestCase):
     # ----- Top-level permissions -----
 
     def test_top_level_permissions_contents_read(self):
+        """
+        Verify the workflow raw text includes a top-level permissions entry setting `contents: read`.
+        
+        Checks that the literal substring "contents: read" appears in the loaded workflow file content.
+        """
         self.assertIn("contents: read", self.text)
 
     # ----- Runner -----
 
     def test_runs_on_ubuntu_latest(self):
+        """
+        Asserts the workflow is configured to run on the "ubuntu-latest" runner.
+        
+        Checks that the raw workflow text contains the substring "ubuntu-latest".
+        """
         self.assertIn("ubuntu-latest", self.text)
 
     # ----- Checkout action -----
@@ -116,6 +131,11 @@ class TestWorkflowRawContent(unittest.TestCase):
     # ----- Step run commands -----
 
     def test_step_runs_mise_bootstrap(self):
+        """
+        Asserts the workflow's raw text contains the command "mise run bootstrap".
+        
+        Checks that the CI workflow includes a step which invokes `mise run bootstrap`.
+        """
         self.assertIn("mise run bootstrap", self.text)
 
     def test_step_runs_mise_info(self):
@@ -139,9 +159,7 @@ class TestWorkflowRawContent(unittest.TestCase):
 
     def test_step_name_install_dependencies(self):
         """
-        Verify the workflow raw text includes the "Install dependencies" step name.
-
-        Asserts that the loaded raw workflow content contains the substring "Install dependencies".
+        Assert that the loaded raw workflow text contains the step name "Install dependencies".
         """
         self.assertIn("Install dependencies", self.text)
 
@@ -205,30 +223,31 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
 
     def test_top_level_permissions_contents_read(self):
         """
-        Ensure the workflow's top-level permissions set "contents" to "read".
-
-        Asserts that `self.cfg["permissions"]["contents"] == "read"`.
+        Assert that the workflow's top-level `permissions.contents` is "read".
         """
         self.assertEqual(self.cfg["permissions"]["contents"], "read")
 
     def test_jobs_build_exists(self):
         """
         Verify that the workflow defines a top-level job named "build".
-
+        
         Asserts that "build" is present as a key in the parsed workflow's `jobs` mapping.
         """
         self.assertIn("build", self.cfg["jobs"])
 
     def test_job_build_permissions_contents_write(self):
         """
-        Asserts that the workflow's `build` job grants write access to repository contents.
-
-        Verifies that `self.cfg["jobs"]["build"]["permissions"]["contents"]` is equal to `"write"`.
+        Ensure the build job grants write access to repository contents.
+        
+        Asserts that self.cfg["jobs"]["build"]["permissions"]["contents"] == "write".
         """
         build_perms = self.cfg["jobs"]["build"]["permissions"]
         self.assertEqual(build_perms["contents"], "write")
 
     def test_job_runs_on_ubuntu_latest(self):
+        """
+        Asserts that the workflow's `build` job is configured to run on "ubuntu-latest".
+        """
         self.assertEqual(self.cfg["jobs"]["build"]["runs-on"], "ubuntu-latest")
 
     def test_steps_is_list(self):
@@ -293,21 +312,26 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
         self.assertTrue(step["with"]["install"])
 
     def test_mise_action_with_cache(self):
+        """
+        Asserts that the build job's mise action step has caching enabled.
+        
+        Checks that the second step in `jobs.build.steps` contains a truthy `with.cache` value.
+        """
         step = self.cfg["jobs"]["build"]["steps"][1]
         self.assertTrue(step["with"]["cache"])
 
     def _get_step_by_name(self, name: str) -> dict:
         """
-        Retrieve a job step by its displayed name from the parsed workflow configuration.
-
+        Locate the build job step whose `name` equals the given value.
+        
         Parameters:
-            name (str): The `name` value of the step to locate within `self.cfg["jobs"]["build"]["steps"]`.
-
+            name (str): Step display name to locate in self.cfg["jobs"]["build"]["steps"].
+        
         Returns:
-            step (dict): The mapping representing the first step whose `"name"` equals `name`.
-
+            dict: The first step mapping with matching `"name"`.
+        
         Raises:
-            KeyError: If no step with the given `name` is present.
+            KeyError: If no step with the given name is present.
         """
         steps = self.cfg["jobs"]["build"]["steps"]
         for step in steps:
@@ -329,9 +353,9 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
 
     def test_check_setup_step_commands(self):
         """
-        Verify the "Check setup" workflow step includes commands to print the mise version and run mise doctor.
-
-        Asserts that the step named "Check setup" has a `run` script containing "mise --version" and "mise doctor".
+        Ensure the "Check setup" workflow step runs `mise --version` and `mise doctor`.
+        
+        Asserts that the step named "Check setup" contains both commands in its `run` script.
         """
         step = self._get_step_by_name("Check setup")
         self.assertIn("mise --version", step["run"])

@@ -18,10 +18,12 @@ MISE_TOML = REPO_ROOT / "mise.toml"
 
 def load_mise_config() -> dict:
     """
-    Load the repository's mise.toml configuration and return it as a dictionary.
-
+    Load the repository's mise.toml configuration.
+    
+    Opens the file at MISE_TOML and parses its TOML content into a Python mapping.
+    
     Returns:
-        dict: Parsed TOML configuration from the file pointed to by `MISE_TOML`.
+        dict: Parsed TOML configuration mapping.
     """
     with open(MISE_TOML, "rb") as f:
         return tomllib.load(f)
@@ -65,6 +67,11 @@ class TestBootstrapTask(unittest.TestCase):
         self.assertIn("bootstrap", self.config["tasks"])
 
     def test_bootstrap_run_is_list(self):
+        """
+        Assert that the bootstrap task's `run` field is a list.
+        
+        This test checks that `self.bootstrap["run"]` is an instance of `list`.
+        """
         self.assertIsInstance(self.bootstrap["run"], list)
 
     def test_bootstrap_run_has_two_commands(self):
@@ -92,9 +99,9 @@ class TestBootstrapTask(unittest.TestCase):
 
     def test_bootstrap_first_command_is_darwin_guarded(self):
         """
-        Ensure the first bootstrap command is guarded to run only on macOS.
-
-        Asserts the command references `OSTYPE`, contains `darwin`, and uses `&&` to combine the conditional with the command.
+        Assert the first bootstrap run command is guarded to run only on macOS.
+        
+        Checks that the command references `OSTYPE`, contains `darwin`, and includes the `if [[`/`fi` conditional markers.
         """
         first_cmd = self.bootstrap["run"][0]
         self.assertIn("OSTYPE", first_cmd)
@@ -117,9 +124,7 @@ class TestBootstrapTask(unittest.TestCase):
 
     def test_bootstrap_has_description(self):
         """
-        Check that the `bootstrap` task contains a `description` key.
-
-        Asserts that the parsed `bootstrap` task dictionary includes a non-missing "description" entry.
+        Ensure the `bootstrap` task defines a non-missing `description` key.
         """
         self.assertIn("description", self.bootstrap)
 
@@ -140,7 +145,7 @@ class TestParseTaskDescription(unittest.TestCase):
     def setUp(self):
         """
         Load the repository's mise.toml and store the `parse` task for use by tests.
-
+        
         Sets:
             self.config: Parsed TOML configuration loaded from the repository root.
             self.parse_task: The mapping for the `tasks.parse` entry from the loaded config.
@@ -169,7 +174,7 @@ class TestParseTaskDescription(unittest.TestCase):
     def test_parse_description_is_non_empty_string(self):
         """
         Verify that the `parse` task has a `description` that is a non-empty string.
-
+        
         Asserts the `description` field on the `parse` task is an instance of `str` and its length is greater than zero.
         """
         desc = self.parse_task["description"]
@@ -180,6 +185,11 @@ class TestParseTaskDescription(unittest.TestCase):
         self.assertEqual(self.parse_task["run"], "python main.py parse")
 
     def test_parse_task_depends_on_bootstrap(self):
+        """
+        Asserts that the `parse` task declares `bootstrap` as a dependency.
+        
+        Checks the `depends` entry of the `parse` task (treating it as an empty list if missing) and fails if `"bootstrap"` is not present.
+        """
         self.assertIn("bootstrap", self.parse_task.get("depends", []))
 
 
@@ -220,7 +230,7 @@ class TestBuildTaskDescription(unittest.TestCase):
     def test_build_description_no_longer_lacks_output_path(self):
         """
         Verify the build task's description mentions the output file path "cv.pdf".
-
+        
         The test asserts that the `description` field of the `build` task contains the substring "cv.pdf".
         """
         desc = self.build_task["description"]
@@ -234,7 +244,7 @@ class TestFullTask(unittest.TestCase):
     def setUp(self):
         """
         Load the repository's mise.toml and store the `full` task for use by tests.
-
+        
         Sets:
             self.config (dict): Parsed TOML configuration loaded from the repository root.
             self.full_task (dict): The mapping for the `tasks["full"]` entry.
@@ -243,12 +253,15 @@ class TestFullTask(unittest.TestCase):
         self.full_task = self.config["tasks"]["full"]
 
     def test_full_task_exists(self):
+        """
+        Asserts that the parsed mise.toml defines a top-level "full" task under the `tasks` section.
+        """
         self.assertIn("full", self.config["tasks"])
 
     def test_full_run_is_list(self):
         """
         Verify the `run` field of the `full` task is a list.
-
+        
         This test ensures the `tasks.full` entry defines its commands as a sequence (list) rather than a single string or other type.
         """
         self.assertIsInstance(self.full_task["run"], list)
