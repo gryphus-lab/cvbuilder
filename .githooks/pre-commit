@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+set -e
+
+staged_files="$(git diff --cached --name-only --diff-filter=ACMR)"
+
+if [ -z "$staged_files" ]; then
+  exit 0
+fi
+
+echo "pre-commit: running mise run format"
+mise run format
+
+echo "$staged_files" | while IFS= read -r file; do
+  if [ -n "$file" ] && [ -e "$file" ]; then
+    git add -- "$file"
+  fi
+done
