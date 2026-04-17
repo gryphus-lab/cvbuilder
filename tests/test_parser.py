@@ -481,3 +481,20 @@ def test_final_sanitize_strategic_keyword_deduplication():
     kw = STRATEGIC_KEYWORDS[0]
     result = final_sanitize(f"{kw} {kw}")
     assert result.count(kw) == 1
+
+
+def test_final_sanitize_ii_to_umlaut_ocr_artifact():
+    """OCR artifact: 'ii' in specific contexts (e.g., Ziirich) should become 'ü' (Zürich)."""
+    # Test the specific OCR pattern: capitalized word with 'ii'
+    result = final_sanitize("Ziirich")
+    assert result == "Zürich"
+
+    # Test another case
+    result = final_sanitize("Mïnchen was misread as Miinchen")
+    assert "München" in result or "Miinchen" not in result  # Should transform Miinchen
+
+    # But legitimate 'ii' in names or words should be preserved in other contexts
+    # The regex targets word boundaries with capital letters, so lowercase 'ii' or 'ii'
+    # at word start without caps before it should remain
+    result = final_sanitize("skiing")
+    assert "skiing" in result  # 'ii' in middle of lowercase word should stay

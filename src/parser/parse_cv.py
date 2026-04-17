@@ -73,8 +73,9 @@ def final_sanitize(text: str) -> str:
     if not text:
         return ""
 
-    # Only the real OCR issue you mentioned
-    text = text.replace("ii", "ü")
+    # Replace 'ii' with 'ü' only in specific OCR contexts (e.g., Zürich misread as Ziirich)
+    # Use word boundary to avoid changing legitimate 'ii' in names/words
+    text = re.sub(r'\b([A-Z]\w*)ii(\w*)\b', r'\1ü\2', text)
 
     for kw in ACHIEVEMENT_KEYWORDS + SKILL_KEYWORDS + STRATEGIC_KEYWORDS:
         double_pattern = rf"\b({re.escape(kw)})\s+({re.escape(kw)})\b"
@@ -123,16 +124,29 @@ def semantic_bullet_split(text: str, keywords: list) -> tuple[str, list[str]]:
 def _parse_personal_info(lines: List[str]) -> Dict[str, str]:
     """
     Extract personal contact and identity fields from the top of OCR'd lines.
-    
-    Scans up to the first 20 non-empty OCR lines and extracts common personal info fields using regex heuristics. Detected keys may include: `email`, `phone`, `date_of_birth`, `nationality`, `permit`, and `address`. The `address` is the first line that looks address-like (contains a digit) and is not a "Date of Birth" line.
-    
+
+    Scans up to the first 20 non-empty OCR lines and extracts common personal info fields using regex heuristics. Detected keys may include: `name`, `title`, `email`, `phone`, `date_of_birth`, `nationality`, `permit`, and `address`. The `address` is the first line that looks address-like (contains a digit) and is not a "Date of Birth" line.
+
     Parameters:
         lines (List[str]): OCR'd lines from the document.
-    
+
     Returns:
         info (Dict[str, str]): A dictionary of extracted fields; only keys for which a match was found are present.
     """
-    info = {}
+    info = {"name": "", "title": ""}
+
+    # Try to extract name from first non-empty line (before any detected fields)
+    for idx, line in enumerate(lines[:5]):
+        line = line.strip()
+        if line and not re.search(r'@|Date of Birth|Nationality|Permit|\+\d{2}', line):
+            # First line that doesn't look like contact info is likely the name
+            if not info["name"]:
+                info["name"] = line
+            elif not info["title"] and idx > 0:
+                # Second such line is likely the title/role
+                info["title"] = line
+                break
+
     for line in lines[:20]:  # only top of document
         # Email
         email_match = re.search(r"[\w\.-]+@[\w\.-]+\.\w+", line)
@@ -155,10 +169,14 @@ def _parse_personal_info(lines: List[str]) -> Dict[str, str]:
         if permit_match:
             info["permit"] = permit_match.group(1).strip()
         # Address (first line that looks like an address)
+        # Skip lines already identified as phone or date, and require address-like pattern
         if (
             not info.get("address")
             and any(c.isdigit() for c in line)
             and "Date of Birth" not in line
+            and not re.search(r'\+\d{2}\s?\d{2}', line)  # Skip phone numbers
+            and not re.search(r'^\d{2}\.\d{2}\.\d{4}$', line.strip())  # Skip standalone dates
+            and re.search(r'\d+\s+\w+|St\b|Street\b|Ave\b|Avenue\b|Rd\b|Road\b|Blvd\b|Lane\b|Strasse\b|strasse\b', line)  # Require address pattern
         ):
             info["address"] = line.strip()
     return info
@@ -281,7 +299,8 @@ def parse_cv_to_json(pdf_path: str):
         line_upper = lines[i].upper().strip().rstrip(":")
 
         if line_upper == "PROFILE":
-            cv_data["profile"], i = _parse_generic_section(lines, i)
+            profile_lines, i = _parse_generic_section(lines, i)
+            cv_data["profile"] = "\n".join(profile_lines)
         elif line_upper == "PROFESSIONAL EXPERIENCE":
             cv_data["professional_experience"], i = _parse_experience(lines, i)
         elif line_upper == "STRATEGIC IMPACT & TRANSFORMATIONS":
@@ -292,31 +311,47 @@ def parse_cv_to_json(pdf_path: str):
             content, i = _parse_generic_section(lines, i)
             edu = []
             for item in content:
+                # Start with a generic entry for each item
+                entry = {"text": final_sanitize(item)}
+
+                # Enrich with known patterns
                 if "Indian Institute" in item:
-                    edu.append({"institution": final_sanitize(item)})
-                elif "Bachelor of Technology" in item:
-                    if edu:
-                        edu[-1]["degree"] = final_sanitize(item)
-                    else:
-                        edu.append({"degree": final_sanitize(item)})
+                    entry["institution"] = final_sanitize(item)
+                if "Bachelor of Technology" in item:
+                    entry["degree"] = final_sanitize(item)
+
+                edu.append(entry)
             cv_data["education"] = edu
         elif line_upper == "LANGUAGES":
             content, i = _parse_generic_section(lines, i)
             languages = []
-            current = None
-            for line in content:
-                line = final_sanitize(line)
-                if line and "linkedin.com" not in line.lower():
-                    if line.startswith("•") or "English" in line or "German" in line:
-                        if current:
-                            languages.append(current)
-                        current = re.sub(r"^\s*•\s*", "", line).strip()
-                    elif current:
-                        current += " " + line
-                    else:
-                        current = line
-            if current:
-                languages.append(current)
+
+            # Detect if section uses bullets
+            has_bullets = any("•" in line for line in content)
+
+            if has_bullets:
+                # Use bullet aggregation logic
+                current = None
+                for line in content:
+                    line = final_sanitize(line)
+                    if line and "linkedin.com" not in line.lower():
+                        if line.startswith("•"):
+                            if current:
+                                languages.append(current)
+                            current = re.sub(r"^\s*•\s*", "", line).strip()
+                        elif current:
+                            current += " " + line
+                        else:
+                            current = line
+                if current:
+                    languages.append(current)
+            else:
+                # Treat each non-empty line as a separate language entry
+                for line in content:
+                    line = final_sanitize(line)
+                    if line and "linkedin.com" not in line.lower():
+                        languages.append(line)
+
             cv_data["languages"] = languages
         elif line_upper == "COMPETENCIES AND SKILLS":
             content, i = _parse_generic_section(lines, i)
