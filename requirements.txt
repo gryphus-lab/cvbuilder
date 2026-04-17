@@ -1,5 +1,5 @@
-Jinja2
-pdf2image
-pytesseract
-weasyprint
-pytest
+Jinja2>=3.1.0,<4.0
+pdf2image>=1.16.0,<2.0
+pytesseract>=0.3.10,<1.0
+weasyprint>=60.0,<62.0
+pytest>=7.0,<9.0

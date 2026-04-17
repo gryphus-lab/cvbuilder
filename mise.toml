@@ -58,3 +58,4 @@ depends = ["bootstrap"]
 [tasks.test]
 description = "Run tests with pytest"
 run = "pytest tests"
+depends = ["bootstrap"]
