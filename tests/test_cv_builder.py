@@ -114,6 +114,20 @@ def test_render_html_with_photo(builder, sample_cv_data):
     assert 'class="photo-img"' in html
 
 
+def test_render_html_escapes_user_markup(builder, sample_cv_data):
+    """Verify that user-provided markup is properly escaped to prevent XSS."""
+    # Inject malicious script into the name field
+    sample_cv_data["personal_info"]["name"] = "<script>alert(1)</script>"
+
+    html = builder._render_html(sample_cv_data)
+
+    # Assert the raw script tag is NOT present
+    assert "<script>alert(1)</script>" not in html
+
+    # Assert the escaped version IS present
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html
+
+
 ## --- Integration Tests (Mocking WeasyPrint) ---
 
 
@@ -425,49 +439,8 @@ def test_build_write_pdf_called_with_string_version_of_path_object(
     assert isinstance(args[0], str)
 
 
-@pytest.fixture
-def builder():
-    return CVBuilder()
-
-
-@pytest.fixture
-def minimal_cv_data():
-    """
-    Create a minimal valid CV dictionary with required top-level keys populated by placeholder or empty values.
-    
-    Returns:
-        dict: A CV payload containing the following keys:
-            - personal_info: dict with name, title, address, phone, email (placeholders or empty strings)
-            - profile: str
-            - strategic_impact: list
-            - professional_experience: list
-            - certificates_and_training: list
-            - education: list
-            - languages: list
-            - competencies_and_skills: dict
-            - volunteering: list
-    """
-    return {
-        "personal_info": {
-            "name": "Test",
-            "title": "Dev",
-            "address": "",
-            "phone": "",
-            "email": "",
-        },
-        "profile": "",
-        "strategic_impact": [],
-        "professional_experience": [],
-        "certificates_and_training": [],
-        "education": [],
-        "languages": [],
-        "competencies_and_skills": {},
-        "volunteering": [],
-    }
-
-
 def test_build_logs_warning_for_nonexistent_photo(
-    builder, minimal_cv_data, tmp_path, caplog
+    builder, minimal_cv_payload, tmp_path, caplog
 ):
     """Test line 34: Logs a warning when photo_path does not exist."""
     output_pdf = tmp_path / "output.pdf"
@@ -476,14 +449,14 @@ def test_build_logs_warning_for_nonexistent_photo(
     # Ensure WeasyPrint doesn't actually try to run
     with patch("src.builder.cv_builder.HTML"):
         with caplog.at_level(logging.WARNING):
-            builder.build(minimal_cv_data, output_pdf, photo_path=invalid_photo)
+            builder.build(minimal_cv_payload, output_pdf, photo_path=invalid_photo)
 
     assert f"Photo path does not exist or is not a file: {invalid_photo}" in caplog.text
     # Verify photo_url was reset to empty string (implied by no img tag in render if we were to check)
 
 
 def test_build_logs_error_on_path_resolution_failure(
-    builder, minimal_cv_data, tmp_path, caplog
+    builder, minimal_cv_payload, tmp_path, caplog
 ):
     """Test line 36: Logs an error when an OSError occurs during path resolution."""
     output_pdf = tmp_path / "output.pdf"
@@ -500,14 +473,14 @@ def test_build_logs_error_on_path_resolution_failure(
 
         with patch("src.builder.cv_builder.HTML"):
             with caplog.at_level(logging.ERROR):
-                builder.build(minimal_cv_data, output_pdf, photo_path=photo_path)
+                builder.build(minimal_cv_payload, output_pdf, photo_path=photo_path)
     assert (
         "Failed to resolve photo path 'some_path.jpg': Permission denied" in caplog.text
     )
 
 
 def test_build_logs_warning_for_directory_instead_of_file(
-    builder, minimal_cv_data, tmp_path, caplog
+    builder, minimal_cv_payload, tmp_path, caplog
 ):
     """Test line 34 variation: Logs a warning when photo_path is a directory, not a file."""
     output_pdf = tmp_path / "output.pdf"
@@ -516,6 +489,6 @@ def test_build_logs_warning_for_directory_instead_of_file(
 
     with patch("src.builder.cv_builder.HTML"):
         with caplog.at_level(logging.WARNING):
-            builder.build(minimal_cv_data, output_pdf, photo_path=dir_as_photo)
+            builder.build(minimal_cv_payload, output_pdf, photo_path=dir_as_photo)
 
     assert "Photo path does not exist or is not a file" in caplog.text
