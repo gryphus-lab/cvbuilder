@@ -130,8 +130,7 @@ def test_photo_path_resolution(builder, sample_cv_data, tmp_path, monkeypatch):
 
         # Get the second argument (photo) passed to _render_html
         called_photo_url = mock_render.call_args[0][1]
-        assert called_photo_url.startswith("file://")
-        assert str(fake_photo.resolve()) in called_photo_url
+        assert called_photo_url == fake_photo.resolve().as_uri()
 
 
 ## --- Additional Unit Tests ---
@@ -392,8 +391,7 @@ def test_build_photo_path_as_string(mock_html_class, builder, sample_cv_data, tm
     with patch.object(CVBuilder, "_render_html", return_value="<html></html>") as mock_render:
         builder.build(sample_cv_data, output_file, photo_path=str(fake_photo))
         called_photo_url = mock_render.call_args[0][1]
-        assert called_photo_url.startswith("file://")
-        assert "headshot.png" in called_photo_url
+        assert called_photo_url == fake_photo.resolve().as_uri()
 
 
 @patch("src.builder.cv_builder.HTML")
