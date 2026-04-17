@@ -18,9 +18,7 @@ MISE_TOML = REPO_ROOT / "mise.toml"
 
 def load_mise_config() -> dict:
     """
-    Load the repository's mise.toml configuration.
-    
-    Opens the file at MISE_TOML and parses its TOML content into a Python mapping.
+    Load and parse the repository's mise.toml configuration from the configured MISE_TOML path.
     
     Returns:
         dict: Parsed TOML configuration mapping.
@@ -53,9 +51,9 @@ class TestBootstrapTask(unittest.TestCase):
 
     def setUp(self):
         """
-        Load the repository's mise.toml into self.config and set self.bootstrap to the 'bootstrap' task entry.
-
-        Prepares test fixtures by parsing the top-level configuration and extracting config["tasks"]["bootstrap"] for use in tests.
+        Prepare test fixtures by loading the repository's mise.toml and extracting the 'bootstrap' task.
+        
+        Sets self.config to the parsed TOML mapping and self.bootstrap to config["tasks"]["bootstrap"] for use by test methods.
         """
         self.config = load_mise_config()
         self.bootstrap = self.config["tasks"]["bootstrap"]
@@ -78,7 +76,9 @@ class TestBootstrapTask(unittest.TestCase):
         self.assertEqual(len(self.bootstrap["run"]), 2)
 
     def test_bootstrap_first_command_has_macos_ostype_guard(self):
-        """The brew symlink command must be guarded by an OSTYPE darwin check."""
+        """
+        Verify the first bootstrap run command contains an OSTYPE-based 'darwin' conditional (a shell [[ ... ]] test).
+        """
         first_cmd = self.bootstrap["run"][0]
         self.assertIn("OSTYPE", first_cmd)
         self.assertIn("darwin", first_cmd)
@@ -110,7 +110,11 @@ class TestBootstrapTask(unittest.TestCase):
         self.assertIn("fi", first_cmd)
 
     def test_bootstrap_first_command_does_not_run_unconditionally(self):
-        """Previous behaviour ran brew unconditionally; ensure that raw unconditional form is gone."""
+        """
+        Assert the first bootstrap run command is not an unguarded 'ln -s' invocation.
+        
+        Ensures the brew symlink command is protected by an OS-type guard and not executed unconditionally.
+        """
         first_cmd = self.bootstrap["run"][0]
         # Must NOT start with bare ln -s (without a guard)
         self.assertFalse(
@@ -131,9 +135,9 @@ class TestBootstrapTask(unittest.TestCase):
     # Regression: previous command was not OS-guarded; ensure OSTYPE check is present
     def test_bootstrap_ostype_check_references_darwin(self):
         """
-        Asserts that the first command in the bootstrap task's `run` list references 'darwin'.
-
-        Verifies the bootstrap task's initial run command includes the substring 'darwin', ensuring an OSTYPE check for macOS is present.
+        Verify the bootstrap task's first run command references 'darwin'.
+        
+        Asserts that the first command contains the substring 'darwin', indicating an OSTYPE check for macOS.
         """
         first_cmd = self.bootstrap["run"][0]
         self.assertIn("darwin", first_cmd)
@@ -198,9 +202,11 @@ class TestBuildTaskDescription(unittest.TestCase):
 
     def setUp(self):
         """
-        Load the project's mise.toml and cache the `build` task for use by tests.
-
-        Assigns the parsed TOML mapping to `self.config` and `self.build_task` to `self.config["tasks"]["build"]`.
+        Prepare the test case by loading the repository's mise.toml and caching the `build` task.
+        
+        Sets:
+            self.config: Parsed TOML mapping from the repository's mise.toml.
+            self.build_task: Mapping for the `build` task (equivalent to self.config["tasks"]["build"]).
         """
         self.config = load_mise_config()
         self.build_task = self.config["tasks"]["build"]
@@ -231,7 +237,7 @@ class TestBuildTaskDescription(unittest.TestCase):
         """
         Verify the build task's description mentions the output file path "cv.pdf".
         
-        The test asserts that the `description` field of the `build` task contains the substring "cv.pdf".
+        Asserts that the `description` field of the `build` task contains the substring "cv.pdf".
         """
         desc = self.build_task["description"]
         # Must mention an output file path
@@ -243,11 +249,9 @@ class TestFullTask(unittest.TestCase):
 
     def setUp(self):
         """
-        Load the repository's mise.toml and store the `full` task for use by tests.
+        Prepare the test fixture by loading the repository's mise.toml and storing the `full` task.
         
-        Sets:
-            self.config (dict): Parsed TOML configuration loaded from the repository root.
-            self.full_task (dict): The mapping for the `tasks["full"]` entry.
+        Loads the parsed TOML into self.config and stores the mapping for tasks["full"] in self.full_task for use by test methods.
         """
         self.config = load_mise_config()
         self.full_task = self.config["tasks"]["full"]
