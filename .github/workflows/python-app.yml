@@ -41,6 +41,6 @@ jobs:
       - name: Lint with black
         run: |
           mise run lint
-      - name: Run tests with coverage
+      - name: Run pytest tests with coverage
         run: |
           mise run coverage
