@@ -140,7 +140,7 @@ class TestParseTaskDescription(unittest.TestCase):
     def setUp(self):
         """
         Load the repository's mise.toml and store the `parse` task for use by tests.
-        
+
         Sets:
             self.config: Parsed TOML configuration loaded from the repository root.
             self.parse_task: The mapping for the `tasks.parse` entry from the loaded config.
@@ -169,7 +169,7 @@ class TestParseTaskDescription(unittest.TestCase):
     def test_parse_description_is_non_empty_string(self):
         """
         Verify that the `parse` task has a `description` that is a non-empty string.
-        
+
         Asserts the `description` field on the `parse` task is an instance of `str` and its length is greater than zero.
         """
         desc = self.parse_task["description"]
@@ -220,7 +220,7 @@ class TestBuildTaskDescription(unittest.TestCase):
     def test_build_description_no_longer_lacks_output_path(self):
         """
         Verify the build task's description mentions the output file path "cv.pdf".
-        
+
         The test asserts that the `description` field of the `build` task contains the substring "cv.pdf".
         """
         desc = self.build_task["description"]
@@ -234,7 +234,7 @@ class TestFullTask(unittest.TestCase):
     def setUp(self):
         """
         Load the repository's mise.toml and store the `full` task for use by tests.
-        
+
         Sets:
             self.config (dict): Parsed TOML configuration loaded from the repository root.
             self.full_task (dict): The mapping for the `tasks["full"]` entry.
@@ -248,7 +248,7 @@ class TestFullTask(unittest.TestCase):
     def test_full_run_is_list(self):
         """
         Verify the `run` field of the `full` task is a list.
-        
+
         This test ensures the `tasks.full` entry defines its commands as a sequence (list) rather than a single string or other type.
         """
         self.assertIsInstance(self.full_task["run"], list)

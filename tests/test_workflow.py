@@ -21,7 +21,7 @@ WORKFLOW_FILE = REPO_ROOT / ".github" / "workflows" / "ci.yml"
 def _raw_text() -> str:
     """
     Return the UTF-8 decoded contents of the repository's CI workflow file.
-    
+
     Returns:
         str: The workflow file contents as a UTF-8 string.
     """
@@ -73,7 +73,7 @@ class TestWorkflowRawContent(unittest.TestCase):
     def test_triggers_on_push_to_main(self):
         """
         Assert the workflow's raw YAML configures a push trigger for the "main" branch.
-        
+
         Checks that the loaded raw workflow text contains a `branches: ["main"]` entry, allowing for surrounding whitespace variations.
         """
         self.assertRegex(self.text, r'branches:\s*\[\s*"main"\s*\]')
@@ -140,7 +140,7 @@ class TestWorkflowRawContent(unittest.TestCase):
     def test_step_name_install_dependencies(self):
         """
         Verify the workflow raw text includes the "Install dependencies" step name.
-        
+
         Asserts that the loaded raw workflow content contains the substring "Install dependencies".
         """
         self.assertIn("Install dependencies", self.text)
@@ -206,7 +206,7 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
     def test_top_level_permissions_contents_read(self):
         """
         Ensure the workflow's top-level permissions set "contents" to "read".
-        
+
         Asserts that `self.cfg["permissions"]["contents"] == "read"`.
         """
         self.assertEqual(self.cfg["permissions"]["contents"], "read")
@@ -214,7 +214,7 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
     def test_jobs_build_exists(self):
         """
         Verify that the workflow defines a top-level job named "build".
-        
+
         Asserts that "build" is present as a key in the parsed workflow's `jobs` mapping.
         """
         self.assertIn("build", self.cfg["jobs"])
@@ -330,7 +330,7 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
     def test_check_setup_step_commands(self):
         """
         Verify the "Check setup" workflow step includes commands to print the mise version and run mise doctor.
-        
+
         Asserts that the step named "Check setup" has a `run` script containing "mise --version" and "mise doctor".
         """
         step = self._get_step_by_name("Check setup")
