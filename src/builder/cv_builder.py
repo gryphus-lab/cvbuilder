@@ -23,8 +23,7 @@ class CVBuilder:
 
         photo_url = ""
         if photo_path:
-            abs_path = Path(photo_path).resolve()
-            photo_url = f"file://{abs_path}"
+            photo_url = Path(photo_path).resolve().as_uri()
 
         html_content = self._render_html(cv_data, photo_url)
 

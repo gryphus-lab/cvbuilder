@@ -92,10 +92,8 @@ def final_sanitize(text: str) -> str:
 
     text = re.sub(r"\s+", " ", text)
     text = re.sub(r"\s*[:]\s*", ": ", text)  # Normalize colons
-    text = text.strip()
-    text = text.replace("Nativ", "Native")
 
-    return text
+    return text.strip().replace("Nativ", "Native")
 
 
 def semantic_bullet_split(text: str, keywords: list) -> tuple[str, list[str]]:
