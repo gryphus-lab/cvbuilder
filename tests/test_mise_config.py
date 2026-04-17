@@ -73,6 +73,7 @@ class TestBootstrapTask(unittest.TestCase):
         self.assertIn("OSTYPE", first_cmd)
         self.assertIn("darwin", first_cmd)
         self.assertIn("&&", first_cmd)
+
     def test_bootstrap_first_command_does_not_run_unconditionally(self):
         """Previous behaviour ran brew unconditionally; ensure that raw unconditional form is gone."""
         first_cmd = self.bootstrap["run"][0]
