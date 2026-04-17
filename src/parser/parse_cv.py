@@ -81,7 +81,7 @@ def final_sanitize(text: str) -> str:
 
     text = re.sub(r"\s+", " ", text)
     text = re.sub(r"\s*[:]\s*", ": ", text)  # Normalize colons
-    text = re.sub(r"\s+[a-zA-Z¢©•]\.?$", "", text.strip())
+    text = text.strip()
     text = text.replace("Nativ", "Native")
 
     return text.strip()

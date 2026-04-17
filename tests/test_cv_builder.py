@@ -342,7 +342,7 @@ def test_render_html_multiple_education_entries(builder, sample_cv_data):
 
 def test_render_html_photo_none_omits_img(builder, sample_cv_data):
     """Calling _render_html with photo=None (default '') must suppress the photo element."""
-    html = builder._render_html(sample_cv_data, photo=None or "")
+    html = builder._render_html(sample_cv_data, photo=None)
     assert "<img" not in html
 
 

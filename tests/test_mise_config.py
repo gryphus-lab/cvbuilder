@@ -339,6 +339,9 @@ class TestBootstrapGuardOrdering(unittest.TestCase):
         if_pos = self.first_cmd.find("if [[")
         then_pos = self.first_cmd.find("then")
         fi_pos = self.first_cmd.rfind("fi")
+        self.assertNotEqual(if_pos, -1, "'if [[' must exist in command")
+        self.assertNotEqual(then_pos, -1, "'then' must exist in command")
+        self.assertNotEqual(fi_pos, -1, "'fi' must exist in command")
         self.assertLess(if_pos, then_pos, "'if [[' must precede 'then'")
         self.assertLess(then_pos, fi_pos, "'then' must precede 'fi'")
 
@@ -346,18 +349,24 @@ class TestBootstrapGuardOrdering(unittest.TestCase):
         """The 'ln -s' command must appear after the 'then' keyword."""
         then_pos = self.first_cmd.find("then")
         ln_pos = self.first_cmd.find("ln -s")
+        self.assertNotEqual(then_pos, -1, "'then' must exist in command")
+        self.assertNotEqual(ln_pos, -1, "'ln -s' must exist in command")
         self.assertLess(then_pos, ln_pos, "'then' must appear before 'ln -s'")
 
     def test_ln_s_appears_before_fi(self):
         """The 'ln -s' command must appear before the closing 'fi'."""
         ln_pos = self.first_cmd.find("ln -s")
         fi_pos = self.first_cmd.rfind("fi")
+        self.assertNotEqual(ln_pos, -1, "'ln -s' must exist in command")
+        self.assertNotEqual(fi_pos, -1, "'fi' must exist in command")
         self.assertLess(ln_pos, fi_pos, "'ln -s' must appear before 'fi'")
 
     def test_ostype_check_appears_before_ln_s(self):
         """The OSTYPE variable reference must precede the 'ln -s' command."""
         ostype_pos = self.first_cmd.find("OSTYPE")
         ln_pos = self.first_cmd.find("ln -s")
+        self.assertNotEqual(ostype_pos, -1, "'OSTYPE' must exist in command")
+        self.assertNotEqual(ln_pos, -1, "'ln -s' must exist in command")
         self.assertLess(ostype_pos, ln_pos, "OSTYPE check must appear before 'ln -s'")
 
     def test_second_command_uses_uv(self):
@@ -420,13 +429,13 @@ class TestAdditionalTasks(unittest.TestCase):
         """The 'coverage' task run command must include a --cov flag."""
         self.assertIn("--cov", self.tasks["coverage"]["run"])
 
-    def test_full_task_depends_on_no_extra_bootstrap(self):
+    def test_full_task_run_is_not_empty(self):
         """The 'full' task run list must not be empty."""
         run = self.tasks["full"]["run"]
         self.assertGreater(len(run), 0)
 
     def test_all_expected_tasks_are_present(self):
-        """All seven canonical tasks must exist in the tasks section."""
+        """All nine canonical tasks must exist in the tasks section."""
         expected = {"bootstrap", "info", "parse", "build", "full", "lint", "format", "test", "coverage"}
         for task_name in expected:
             self.assertIn(task_name, self.tasks, f"Task '{task_name}' missing from mise.toml")
