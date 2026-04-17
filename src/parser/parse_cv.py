@@ -73,9 +73,17 @@ def final_sanitize(text: str) -> str:
     if not text:
         return ""
 
+    # Apply OCR normalizations
+    text = re.sub(r'\bAl-', 'AI-', text)
+    text = re.sub(r'\bAl\s', 'AI ', text)
+    text = re.sub(r'OpenAl\b', 'OpenAI', text)
+    text = re.sub(r'[•©¢]', '', text)
+
     # Replace 'ii' with 'ü' only in specific OCR contexts (e.g., Zürich misread as Ziirich)
-    # Use word boundary to avoid changing legitimate 'ii' in names/words
-    text = re.sub(r'\b([A-Z]\w*)ii(\w*)\b', r'\1ü\2', text)
+    # Match standalone 'ii' or 'ii' NOT preceded by a vowel (to avoid Hawaii)
+    text = re.sub(r'\bii\b', 'ü', text)  # standalone 'ii'
+    # Match capitalized words with 'ii' not preceded by a vowel (Ziirich, Miinchen)
+    text = re.sub(r'\b([A-Z](?:[^aeiouAEIOU])*?)ii(\w*)\b', r'\1ü\2', text)
 
     for kw in ACHIEVEMENT_KEYWORDS + SKILL_KEYWORDS + STRATEGIC_KEYWORDS:
         double_pattern = rf"\b({re.escape(kw)})\s+({re.escape(kw)})\b"
@@ -135,11 +143,22 @@ def _parse_personal_info(lines: List[str]) -> Dict[str, str]:
     """
     info = {"name": "", "title": ""}
 
+    # Common section headers to skip
+    COMMON_HEADERS = {"PROFILE", "SUMMARY", "EXPERIENCE", "EDUCATION", "SKILLS", "PROJECTS",
+                      "PROFESSIONAL EXPERIENCE", "STRATEGIC IMPACT & TRANSFORMATIONS",
+                      "CERTIFICATES AND TRAINING", "LANGUAGES", "COMPETENCIES AND SKILLS", "VOLUNTEERING"}
+
     # Try to extract name from first non-empty line (before any detected fields)
     for idx, line in enumerate(lines[:5]):
         line = line.strip()
-        if line and not re.search(r'@|Date of Birth|Nationality|Permit|\+\d{2}', line):
-            # First line that doesn't look like contact info is likely the name
+        # Skip section headers (all-caps, ends with ':', or matches known headers)
+        line_upper = line.upper().rstrip(':')
+        is_heading = (line_upper in COMMON_HEADERS or
+                      (line.isupper() and len(line.split()) <= 3) or
+                      line.endswith(':'))
+
+        if line and not is_heading and not re.search(r'@|Date of Birth|Nationality|Permit|\+\d{2}', line):
+            # First line that doesn't look like contact info or header is likely the name
             if not info["name"]:
                 info["name"] = line
             elif not info["title"] and idx > 0:
@@ -310,15 +329,42 @@ def parse_cv_to_json(pdf_path: str):
         elif line_upper == "EDUCATION":
             content, i = _parse_generic_section(lines, i)
             edu = []
-            for item in content:
-                # Start with a generic entry for each item
-                entry = {"text": final_sanitize(item)}
+            degree_keywords = ["Bachelor", "Master", "B.Tech", "B.Sc", "M.Tech", "M.Sc", "PhD", "Doctorate"]
 
-                # Enrich with known patterns
-                if "Indian Institute" in item:
-                    entry["institution"] = final_sanitize(item)
-                if "Bachelor of Technology" in item:
-                    entry["degree"] = final_sanitize(item)
+            for item in content:
+                sanitized = final_sanitize(item)
+                entry = {"institution": "", "degree": ""}
+
+                # Try to detect degree keywords
+                degree_found = ""
+                for deg_kw in degree_keywords:
+                    if deg_kw in item:
+                        degree_found = sanitized
+                        break
+
+                # Try to split by common separators
+                if "," in item:
+                    parts = item.split(",", 1)
+                    # First part often contains institution or degree
+                    if degree_found:
+                        entry["degree"] = final_sanitize(parts[0])
+                        entry["institution"] = final_sanitize(parts[1])
+                    else:
+                        entry["institution"] = final_sanitize(parts[0])
+                        entry["degree"] = final_sanitize(parts[1]) if len(parts) > 1 else ""
+                elif " - " in item:
+                    parts = item.split(" - ", 1)
+                    entry["institution"] = final_sanitize(parts[0])
+                    entry["degree"] = final_sanitize(parts[1]) if len(parts) > 1 else ""
+                else:
+                    # No separator found, use heuristics
+                    if degree_found:
+                        entry["degree"] = sanitized
+                    elif "Institute" in item or "University" in item or "College" in item:
+                        entry["institution"] = sanitized
+                    else:
+                        # Fallback: use the whole line as institution
+                        entry["institution"] = sanitized
 
                 edu.append(entry)
             cv_data["education"] = edu

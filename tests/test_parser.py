@@ -489,9 +489,13 @@ def test_final_sanitize_ii_to_umlaut_ocr_artifact():
     result = final_sanitize("Ziirich")
     assert result == "Zürich"
 
-    # Test another case
+    # Test another case - exact match
     result = final_sanitize("Mïnchen was misread as Miinchen")
-    assert "München" in result or "Miinchen" not in result  # Should transform Miinchen
+    assert result == "Mïnchen was misread as München"
+
+    # Test that capitalized non-OCR word remains unchanged
+    result = final_sanitize("Hawaii")
+    assert result == "Hawaii"
 
     # But legitimate 'ii' in names or words should be preserved in other contexts
     # The regex targets word boundaries with capital letters, so lowercase 'ii' or 'ii'
