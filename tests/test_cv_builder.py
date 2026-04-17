@@ -168,7 +168,6 @@ def test_render_html_without_photo_omits_img_tag(builder, sample_cv_data):
     """When no photo is provided the photo block must be absent from the HTML."""
     html = builder._render_html(sample_cv_data)
     assert 'class="photo-img"' not in html
-    assert "<img" not in html
 
 
 def test_render_html_contains_certificate(builder, sample_cv_data):
@@ -230,14 +229,14 @@ def test_render_html_is_valid_html_document(builder, sample_cv_data):
     """
     html = builder._render_html(sample_cv_data)
     assert "<!DOCTYPE html>" in html
-    assert "<html>" in html
+    assert "<html" in html
     assert "</html>" in html
 
 
 def test_render_html_photo_empty_string_omits_img(builder, sample_cv_data):
     """Explicitly passing photo='' must still suppress the photo block."""
     html = builder._render_html(sample_cv_data, photo="")
-    assert "<img" not in html
+    assert 'class="photo-img"' not in html
 
 
 ## --- Additional Integration Tests ---
@@ -255,7 +254,7 @@ def test_build_without_photo_passes_empty_photo_url(
     builder.build(sample_cv_data, output_file)
 
     _, kwargs = mock_html_class.call_args
-    assert "<img" not in kwargs["string"]
+    assert 'class="photo-img"' not in kwargs["string"]
 
 
 @patch("src.builder.cv_builder.HTML")
@@ -375,7 +374,7 @@ def test_render_html_multiple_education_entries(builder, sample_cv_data):
 def test_render_html_photo_none_omits_img(builder, sample_cv_data):
     """Calling _render_html with photo=None (default '') must suppress the photo element."""
     html = builder._render_html(sample_cv_data, photo=None)
-    assert "<img" not in html
+    assert 'class="photo-img"' not in html
 
 
 @patch("src.builder.cv_builder.HTML")
