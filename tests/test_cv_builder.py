@@ -93,21 +93,23 @@ def test_build_creates_directory_and_calls_weasyprint(
     mock_html_instance.write_pdf.assert_called_once_with(str(output_file))
 
 
-def test_photo_path_resolution(builder, sample_cv_data, tmp_path):
+def test_photo_path_resolution(builder, sample_cv_data, tmp_path, monkeypatch):
     """Check if a relative photo path is converted to a file:// absolute URL."""
     fake_photo = tmp_path / "me.jpg"
     fake_photo.touch()  # Create empty file
 
+    # Change to tmp_path so the relative path is resolved from there
+    monkeypatch.chdir(tmp_path)
+
     with patch.object(
         CVBuilder, "_render_html", return_value="<html></html>"
-    ) as mock_render:
-        with patch("src.builder.cv_builder.HTML"):  # Avoid actual PDF generation
-            builder.build(sample_cv_data, tmp_path / "out.pdf", photo_path=fake_photo)
+    ) as mock_render, patch("src.builder.cv_builder.HTML"):  # Avoid actual PDF generation
+        builder.build(sample_cv_data, tmp_path / "out.pdf", photo_path="me.jpg")
 
-            # Get the second argument (photo) passed to _render_html
-            called_photo_url = mock_render.call_args[0][1]
-            assert called_photo_url.startswith("file://")
-            assert str(fake_photo.resolve()) in called_photo_url
+        # Get the second argument (photo) passed to _render_html
+        called_photo_url = mock_render.call_args[0][1]
+        assert called_photo_url.startswith("file://")
+        assert str(fake_photo.resolve()) in called_photo_url
 
 
 ## --- Additional Unit Tests ---
@@ -233,7 +235,7 @@ def test_build_passes_base_url_to_weasyprint(
     builder.build(sample_cv_data, output_file)
 
     _, kwargs = mock_html_class.call_args
-    assert "base_url" in kwargs
+    assert kwargs["base_url"] == str(output_file.parent)
 
 
 @patch("src.builder.cv_builder.HTML")

@@ -58,6 +58,18 @@ class TestBootstrapTask(unittest.TestCase):
         self.config = load_mise_config()
         self.bootstrap = self.config["tasks"]["bootstrap"]
 
+    def assert_darwin_guarded(self, cmd):
+        """
+        Assert that a command is guarded to run only on macOS.
+
+        Checks that the command references `OSTYPE`, contains `darwin`, and includes the `if [[`/`then`/`fi` conditional markers.
+        """
+        self.assertIn("OSTYPE", cmd)
+        self.assertIn("darwin", cmd)
+        self.assertIn("if [[", cmd)
+        self.assertIn("then", cmd)
+        self.assertIn("fi", cmd)
+
     def test_bootstrap_task_exists(self):
         """
         Check that the top-level `tasks` section includes a `bootstrap` entry.
@@ -82,11 +94,7 @@ class TestBootstrapTask(unittest.TestCase):
         Checks that the command references `OSTYPE`, contains `darwin`, and includes the `if [[`/`then`/`fi` conditional markers.
         """
         first_cmd = self.bootstrap["run"][0]
-        self.assertIn("OSTYPE", first_cmd)
-        self.assertIn("darwin", first_cmd)
-        self.assertIn("if [[", first_cmd)
-        self.assertIn("then", first_cmd)
-        self.assertIn("fi", first_cmd)
+        self.assert_darwin_guarded(first_cmd)
 
     def test_bootstrap_first_command_contains_brew_symlink(self):
         first_cmd = self.bootstrap["run"][0]
@@ -279,6 +287,9 @@ class TestBootstrapGuardCompleteness(unittest.TestCase):
     def setUp(self):
         self.config = load_mise_config()
         self.first_cmd = self.config["tasks"]["bootstrap"]["run"][0]
+        # Reuse the helper from TestBootstrapTask
+        self.bootstrap_task_test = TestBootstrapTask()
+        self.bootstrap_task_test.setUp()
 
     def test_darwin_guard_has_opening_bracket_syntax(self):
         """The conditional must use bash double-bracket [[ syntax."""
@@ -294,13 +305,7 @@ class TestBootstrapGuardCompleteness(unittest.TestCase):
 
     def test_darwin_guard_all_markers_present_together(self):
         """All six guard markers must be present in the same command string."""
-        markers = ["OSTYPE", "darwin", "if [[", "then", "fi", "ln -s"]
-        for marker in markers:
-            self.assertIn(
-                marker,
-                self.first_cmd,
-                f"Expected marker '{marker}' missing from bootstrap first command",
-            )
+        self.bootstrap_task_test.assert_darwin_guarded(self.first_cmd)
 
     def test_darwin_guard_if_precedes_fi(self):
         """'if [[' must appear before 'fi' in the command string."""

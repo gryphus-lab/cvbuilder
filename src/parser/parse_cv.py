@@ -84,7 +84,7 @@ def final_sanitize(text: str) -> str:
     text = re.sub(r"\s+[a-zA-Z¢©•]\.?$", "", text.strip())
     text = text.replace("Nativ", "Native")
 
-    return text.strip().strip("e ")
+    return text.strip()
 
 
 def semantic_bullet_split(text: str, keywords: list) -> tuple[str, list[str]]:
