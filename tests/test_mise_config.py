@@ -19,7 +19,7 @@ MISE_TOML = REPO_ROOT / "mise.toml"
 def load_mise_config() -> dict:
     """
     Load and parse the repository's mise.toml configuration.
-    
+
     Returns:
         dict: Parsed TOML configuration mapping.
     """
@@ -60,7 +60,7 @@ class TestMiseTomlParses(unittest.TestCase):
     def test_tools_section_exists(self):
         """
         Asserts that the parsed mise.toml configuration contains a top-level "tools" section.
-        
+
         This test loads the repository mise.toml and verifies the "tools" key is present in the resulting mapping.
         """
         config = load_mise_config()
@@ -73,7 +73,7 @@ class TestBootstrapTask(MiseTestBase):
     def setUp(self):
         """
         Prepare test fixtures by loading the repository mise.toml and setting up the bootstrap task.
-        
+
         Loads the repository's mise.toml into self.config and sets self.bootstrap to the task mapping at config["tasks"]["bootstrap"] for use by test methods.
         """
         self.config = load_mise_config()
@@ -335,7 +335,7 @@ class TestBootstrapGuardCompleteness(MiseTestBase):
     def test_bootstrap_first_command_is_multiline_or_compound(self):
         """
         Assert the macOS guard command contains the shell keywords "if", "then", and "fi".
-        
+
         This ensures the first bootstrap command is a compound/multiline guard rather than a trivial single-word command by requiring all three shell markers to be present.
         """
         keywords_found = sum(1 for kw in ["if", "then", "fi"] if kw in self.first_cmd)
@@ -351,7 +351,7 @@ class TestBootstrapGuardOrdering(unittest.TestCase):
     def setUp(self):
         """
         Set up test fixtures by loading the repository's mise.toml and caching the bootstrap task's first run command.
-        
+
         Attributes:
             config (dict): Parsed TOML configuration from mise.toml.
             first_cmd (str): The first command string in `tasks.bootstrap.run`.
@@ -415,7 +415,7 @@ class TestAdditionalTasks(unittest.TestCase):
     def setUp(self):
         """
         Prepare test fixture by loading the repository's mise.toml and caching its parsed configuration and tasks mapping.
-        
+
         Sets:
         - self.config: Parsed TOML configuration as a dict.
         - self.tasks: Shortcut to self.config["tasks"] for use in tests.

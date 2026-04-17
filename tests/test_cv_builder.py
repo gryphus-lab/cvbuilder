@@ -8,11 +8,11 @@ from src.builder.cv_builder import CVBuilder
 def sample_cv_data():
     """
     Return a minimal, valid CV data dictionary used by tests.
-    
+
     The dictionary includes these top-level keys: personal_info, profile, strategic_impact,
     professional_experience, certificates_and_training, education, languages,
     competencies_and_skills, and volunteering.
-    
+
     Returns:
         dict: Sample CV data matching the test-suite layout, containing placeholder
         values for personal information and minimal entries for each section.

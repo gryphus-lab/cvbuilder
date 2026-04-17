@@ -61,12 +61,12 @@ def _is_header(line: str) -> bool:
 def final_sanitize(text: str) -> str:
     """
     Sanitize OCR-derived text by applying common corrections, collapsing duplicated keywords, and normalizing punctuation and whitespace.
-    
+
     Performs a set of fixed string replacements for common OCR errors, collapses adjacent duplicated occurrences of keywords from ACHIEVEMENT_KEYWORDS, SKILL_KEYWORDS, and STRATEGIC_KEYWORDS (case-insensitive), normalizes repeated whitespace to single spaces, normalizes colon spacing to ": ", trims surrounding whitespace, replaces "Nativ" with "Native", and returns an empty string when the input is falsy.
-    
+
     Parameters:
         text (str): Raw OCR-extracted text to sanitize.
-    
+
     Returns:
         str: The sanitized text.
     """
@@ -95,19 +95,19 @@ def final_sanitize(text: str) -> str:
     text = text.strip()
     text = text.replace("Nativ", "Native")
 
-    return text.strip()
+    return text
 
 
 def semantic_bullet_split(text: str, keywords: list) -> tuple[str, list[str]]:
     """
     Split a block of text into a lead-in and sanitized keyword-led bullet segments.
-    
+
     Parameters:
         text (str): The input text to split.
         keywords (list): Iterable of keyword strings to detect when followed by a colon.
-    
+
     Returns:
-        tuple[str, list[str]]: 
+        tuple[str, list[str]]:
             lead_in — sanitized text that appears before the first detected `keyword:` occurrence (empty string if none).
             bullets — list of sanitized "Keyword: content" strings for each detected keyword occurrence.
     """
