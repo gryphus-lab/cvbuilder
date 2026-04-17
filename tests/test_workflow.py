@@ -17,6 +17,7 @@ WORKFLOW_FILE = REPO_ROOT / ".github" / "workflows" / "python-app.yml"
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _raw_text() -> str:
     return WORKFLOW_FILE.read_text(encoding="utf-8")
 
@@ -24,6 +25,7 @@ def _raw_text() -> str:
 def _load_yaml() -> dict:
     """Try to parse with PyYAML; raises ImportError if unavailable."""
     import yaml  # type: ignore
+
     with open(WORKFLOW_FILE, encoding="utf-8") as f:
         return yaml.safe_load(f)
 
@@ -32,9 +34,12 @@ def _load_yaml() -> dict:
 # File-existence & raw-text tests (no extra deps required)
 # ---------------------------------------------------------------------------
 
+
 class TestWorkflowFileExists(unittest.TestCase):
     def test_workflow_file_exists(self):
-        self.assertTrue(WORKFLOW_FILE.exists(), f"Workflow file not found: {WORKFLOW_FILE}")
+        self.assertTrue(
+            WORKFLOW_FILE.exists(), f"Workflow file not found: {WORKFLOW_FILE}"
+        )
 
     def test_workflow_file_is_non_empty(self):
         self.assertGreater(WORKFLOW_FILE.stat().st_size, 0)
@@ -135,7 +140,9 @@ except ImportError:
     _YAML_AVAILABLE = False
 
 
-@unittest.skipUnless(_YAML_AVAILABLE, "PyYAML not installed – skipping structured tests")
+@unittest.skipUnless(
+    _YAML_AVAILABLE, "PyYAML not installed – skipping structured tests"
+)
 class TestWorkflowYAMLStructure(unittest.TestCase):
     """Deep structural assertions using a parsed YAML document."""
 
