@@ -6,7 +6,23 @@ from src.builder.cv_builder import CVBuilder
 
 @pytest.fixture
 def sample_cv_data():
-    """Returns a minimal valid CV data structure."""
+    """
+    Provide a minimal, valid CV data dictionary used by tests.
+    
+    The dictionary contains these top-level keys:
+    - personal_info: mapping with name, title, address, phone, and email
+    - profile: short summary string
+    - strategic_impact: list of impact strings
+    - professional_experience: list of job mappings (title, company, location, dates, description, achievements)
+    - certificates_and_training: list of certificate/training strings
+    - education: list of mappings (institution, degree)
+    - languages: list of language strings
+    - competencies_and_skills: mapping from competency category to list of skills
+    - volunteering: list of volunteering entries
+    
+    Returns:
+        dict: A sample CV data structure matching the layout described above.
+    """
     return {
         "personal_info": {
             "name": "Jane Doe",
@@ -37,6 +53,12 @@ def sample_cv_data():
 
 @pytest.fixture
 def builder():
+    """
+    Provide a reusable CVBuilder instance for tests.
+    
+    Returns:
+        CVBuilder: A new CVBuilder instance.
+    """
     return CVBuilder()
 
 
