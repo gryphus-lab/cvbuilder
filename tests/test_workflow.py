@@ -163,7 +163,9 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
         self.cfg = _load_yaml()
 
     def test_workflow_name(self):
-        self.assertEqual(self.cfg["name"], "Python application")
+        self.assertEqual(
+            self.cfg["name"], "CI Workflow for cvbuilder with mise and SonarQube"
+        )
 
     def test_on_push_branches(self):
         self.assertIn("main", self.cfg["on"]["push"]["branches"])
