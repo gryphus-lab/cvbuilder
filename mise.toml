@@ -21,7 +21,7 @@ python.uv_venv_auto = "create|source"
 [tasks.bootstrap]
 description = "Install dependencies"
 run = [
-  "ln -s $(brew --prefix)/lib/* $HOME/.local/share/mise/installs/python/3.14.4/lib/ >/dev/null 2>&1 || true",
+  'if [[ "$OSTYPE" == "darwin"* ]]; then ln -sf $(brew --prefix)/lib/* $(python -c "import sysconfig; print(sysconfig.get_path(\"stdlib\"))") >/dev/null 2>&1; fi',
   "uv pip install -r requirements.txt",
 ]
 
@@ -33,20 +33,17 @@ echo "Virtual Environment: $VIRTUAL_ENV"
 '''
 
 [tasks.parse]
-description = "Parse CV PDF → cv_data.json"
+description = "Parse CV PDF → results/cv_data.json"
 run = "python main.py parse"
 depends = ["bootstrap"]
 
 [tasks.build]
-description = "Build PDF from JSON data"
+description = "Build PDF from JSON data → default: results/cv.pdf"
 run = "python main.py build"
 
 [tasks.full]
 description = "Parse + Build (full regeneration)"
-run = [
-  "python main.py parse",
-  "python main.py build",
-]
+run = ["python main.py parse", "python main.py build"]
 
 [tasks.lint]
 description = "Lint with black"
@@ -56,4 +53,14 @@ depends = ["bootstrap"]
 [tasks.format]
 description = "Format code with black"
 run = "black . --fast"
+depends = ["bootstrap"]
+
+[tasks.test]
+description = "Run tests with pytest"
+run = "pytest tests"
+depends = ["bootstrap"]
+
+[tasks.coverage]
+description = "Run tests with coverage report"
+run = "pytest tests --cov=. --cov-report=term-missing --cov-report=xml:coverage.xml"
 depends = ["bootstrap"]

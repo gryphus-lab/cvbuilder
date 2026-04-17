@@ -11,6 +11,10 @@ wheels/
 
 .idea
 results/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
 
 **/*.pdf
 **/*.png
