@@ -9,15 +9,17 @@ from src.builder.cv_builder import CVBuilder
 @pytest.fixture
 def sample_cv_data():
     """
-    Return a minimal, valid CV data dictionary used by tests.
-
-    The dictionary includes these top-level keys: personal_info, profile, strategic_impact,
-    professional_experience, certificates_and_training, education, languages,
-    competencies_and_skills, and volunteering.
-
+    Provide a minimal, valid CV dictionary for use in tests.
+    
+    The returned dictionary contains the top-level keys expected by the test suite:
+    `personal_info`, `profile`, `strategic_impact`, `professional_experience`,
+    `certificates_and_training`, `education`, `languages`, `competencies_and_skills`,
+    and `volunteering`. Values are placeholder strings or minimal entries suitable
+    for rendering and assertions in unit tests.
+    
     Returns:
-        dict: Sample CV data matching the test-suite layout, containing placeholder
-        values for personal information and minimal entries for each section.
+        dict: A sample CV payload with populated `personal_info` and minimal entries
+        for each section.
     """
     return {
         "personal_info": {
@@ -61,14 +63,12 @@ def builder():
 @pytest.fixture
 def minimal_cv_payload():
     """
-    Provide a minimal CV data dictionary with empty sections.
-
-    This fixture is useful for boundary/regression tests that need a bare-minimum
-    CV structure without extensive content. Tests should copy() or deepcopy() the
-    returned dict if they need to modify it.
-
+    Return a minimal CV dictionary containing all required top-level keys with empty or placeholder values.
+    
+    This fixture is intended for boundary and regression tests. Callers should copy or deepcopy the returned dict before mutating it.
+    
     Returns:
-        dict: A minimal CV data structure with all required keys but minimal content.
+        dict: Minimal CV data structure where sections are empty lists/dicts or minimal placeholder strings.
     """
     return {
         "personal_info": {
@@ -432,6 +432,21 @@ def builder():
 
 @pytest.fixture
 def minimal_cv_data():
+    """
+    Create a minimal valid CV dictionary with required top-level keys populated by placeholder or empty values.
+    
+    Returns:
+        dict: A CV payload containing the following keys:
+            - personal_info: dict with name, title, address, phone, email (placeholders or empty strings)
+            - profile: str
+            - strategic_impact: list
+            - professional_experience: list
+            - certificates_and_training: list
+            - education: list
+            - languages: list
+            - competencies_and_skills: dict
+            - volunteering: list
+    """
     return {
         "personal_info": {
             "name": "Test",
