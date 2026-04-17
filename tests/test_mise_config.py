@@ -75,18 +75,15 @@ class TestBootstrapTask(unittest.TestCase):
     def test_bootstrap_run_has_two_commands(self):
         self.assertEqual(len(self.bootstrap["run"]), 2)
 
-    def test_bootstrap_first_command_has_macos_ostype_guard(self):
+    def test_bootstrap_first_command_is_darwin_guarded(self):
         """
-        Verify the first bootstrap run command contains an OSTYPE-based 'darwin' conditional (a shell [[ ... ]] test).
+        Assert the first bootstrap run command is guarded to run only on macOS.
+
+        Checks that the command references `OSTYPE`, contains `darwin`, and includes the `if [[`/`then`/`fi` conditional markers.
         """
         first_cmd = self.bootstrap["run"][0]
         self.assertIn("OSTYPE", first_cmd)
         self.assertIn("darwin", first_cmd)
-        self.assertIn("[[", first_cmd)
-
-    def test_bootstrap_first_command_uses_conditional_and(self):
-        """The macOS guard is implemented as an if/then block around the symlink."""
-        first_cmd = self.bootstrap["run"][0]
         self.assertIn("if [[", first_cmd)
         self.assertIn("then", first_cmd)
         self.assertIn("fi", first_cmd)
@@ -96,18 +93,6 @@ class TestBootstrapTask(unittest.TestCase):
         self.assertIn("ln -s", first_cmd)
         self.assertIn("$(brew --prefix)/lib/*", first_cmd)
         self.assertIn("sysconfig.get_path", first_cmd)
-
-    def test_bootstrap_first_command_is_darwin_guarded(self):
-        """
-        Assert the first bootstrap run command is guarded to run only on macOS.
-
-        Checks that the command references `OSTYPE`, contains `darwin`, and includes the `if [[`/`fi` conditional markers.
-        """
-        first_cmd = self.bootstrap["run"][0]
-        self.assertIn("OSTYPE", first_cmd)
-        self.assertIn("darwin", first_cmd)
-        self.assertIn("if [[", first_cmd)
-        self.assertIn("fi", first_cmd)
 
     def test_bootstrap_first_command_does_not_run_unconditionally(self):
         """
