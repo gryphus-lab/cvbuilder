@@ -60,9 +60,7 @@ class TestBootstrapTask(unittest.TestCase):
 
     def test_bootstrap_task_exists(self):
         """
-        Verify the configuration contains a 'bootstrap' entry under the top-level 'tasks' section.
-
-        This test fails if 'bootstrap' is not present in self.config["tasks"].
+        Check that the top-level `tasks` section includes a `bootstrap` entry.
         """
         self.assertIn("bootstrap", self.config["tasks"])
 
@@ -141,11 +139,11 @@ class TestParseTaskDescription(unittest.TestCase):
 
     def setUp(self):
         """
-        Prepare the test fixture by loading the repository's mise.toml and storing the `parse` task.
-
+        Load the repository's mise.toml and store the `parse` task for use by tests.
+        
         Sets:
-            self.config (dict): Parsed TOML configuration returned by load_mise_config().
-            self.parse_task (dict): The mapping for the `tasks.parse` entry from the loaded config.
+            self.config: Parsed TOML configuration loaded from the repository root.
+            self.parse_task: The mapping for the `tasks.parse` entry from the loaded config.
         """
         self.config = load_mise_config()
         self.parse_task = self.config["tasks"]["parse"]
@@ -169,6 +167,11 @@ class TestParseTaskDescription(unittest.TestCase):
         self.assertNotIn("→ cv_data.json", desc)
 
     def test_parse_description_is_non_empty_string(self):
+        """
+        Verify that the `parse` task has a `description` that is a non-empty string.
+        
+        Asserts the `description` field on the `parse` task is an instance of `str` and its length is greater than zero.
+        """
         desc = self.parse_task["description"]
         self.assertIsInstance(desc, str)
         self.assertGreater(len(desc), 0)
@@ -215,6 +218,11 @@ class TestBuildTaskDescription(unittest.TestCase):
 
     # Regression: old description was "Build PDF from JSON data" with no output path
     def test_build_description_no_longer_lacks_output_path(self):
+        """
+        Verify the build task's description mentions the output file path "cv.pdf".
+        
+        The test asserts that the `description` field of the `build` task contains the substring "cv.pdf".
+        """
         desc = self.build_task["description"]
         # Must mention an output file path
         self.assertIn("cv.pdf", desc)
@@ -225,11 +233,11 @@ class TestFullTask(unittest.TestCase):
 
     def setUp(self):
         """
-        Prepare the test fixture by loading the repository's mise.toml and storing its "full" task.
-
-        Attributes:
-            config (dict): Parsed TOML configuration.
-            full_task (dict): Mapping for the `tasks["full"]` entry.
+        Load the repository's mise.toml and store the `full` task for use by tests.
+        
+        Sets:
+            self.config (dict): Parsed TOML configuration loaded from the repository root.
+            self.full_task (dict): The mapping for the `tasks["full"]` entry.
         """
         self.config = load_mise_config()
         self.full_task = self.config["tasks"]["full"]
@@ -238,6 +246,11 @@ class TestFullTask(unittest.TestCase):
         self.assertIn("full", self.config["tasks"])
 
     def test_full_run_is_list(self):
+        """
+        Verify the `run` field of the `full` task is a list.
+        
+        This test ensures the `tasks.full` entry defines its commands as a sequence (list) rather than a single string or other type.
+        """
         self.assertIsInstance(self.full_task["run"], list)
 
     def test_full_run_has_two_commands(self):

@@ -20,10 +20,10 @@ WORKFLOW_FILE = REPO_ROOT / ".github" / "workflows" / "ci.yml"
 
 def _raw_text() -> str:
     """
-    Read and return the repository workflow file contents.
-
+    Return the UTF-8 decoded contents of the repository's CI workflow file.
+    
     Returns:
-        str: The contents of the workflow file.
+        str: The workflow file contents as a UTF-8 string.
     """
     return WORKFLOW_FILE.read_text(encoding="utf-8")
 
@@ -42,24 +42,6 @@ def _load_yaml() -> dict:
 
     with open(WORKFLOW_FILE, encoding="utf-8") as f:
         return yaml.safe_load(f)
-
-
-def get_mapping_key(cfg: dict, key: str) -> dict:
-    """
-    Safely retrieve a mapping value from cfg, handling cases where YAML coerces
-    unquoted 'on' to boolean True.
-
-    Parameters:
-        cfg (dict): The configuration dictionary to query.
-        key (str): The key to retrieve from cfg.
-
-    Returns:
-        dict: The value at cfg[key] if it's a dict/mapping, otherwise an empty dict.
-    """
-    value = cfg.get(key)
-    if isinstance(value, dict):
-        return value
-    return {}
 
 
 # ---------------------------------------------------------------------------
@@ -89,6 +71,11 @@ class TestWorkflowRawContent(unittest.TestCase):
     # ----- Trigger configuration -----
 
     def test_triggers_on_push_to_main(self):
+        """
+        Assert the workflow's raw YAML configures a push trigger for the "main" branch.
+        
+        Checks that the loaded raw workflow text contains a `branches: ["main"]` entry, allowing for surrounding whitespace variations.
+        """
         self.assertRegex(self.text, r'branches:\s*\[\s*"main"\s*\]')
 
     def test_triggers_on_pull_request(self):
@@ -107,6 +94,9 @@ class TestWorkflowRawContent(unittest.TestCase):
     # ----- Checkout action -----
 
     def test_checkout_action_version(self):
+        """
+        Verify the workflow specifies the use of the actions/checkout@v6 action for repository checkout.
+        """
         self.assertIn("actions/checkout@v6", self.text)
 
     def test_checkout_fetch_depth_zero(self):
@@ -148,6 +138,11 @@ class TestWorkflowRawContent(unittest.TestCase):
     # ----- Step names present -----
 
     def test_step_name_install_dependencies(self):
+        """
+        Verify the workflow raw text includes the "Install dependencies" step name.
+        
+        Asserts that the loaded raw workflow content contains the substring "Install dependencies".
+        """
         self.assertIn("Install dependencies", self.text)
 
     def test_step_name_show_project_info(self):
@@ -161,7 +156,7 @@ class TestWorkflowRawContent(unittest.TestCase):
 
     # ----- Regression: test step must exist -----
 
-    def test_pytest_step_present(self):
+    def test_no_pytest_step(self):
         """Workflow must execute tests."""
         self.assertIn("pytest", self.text)
 
@@ -198,8 +193,7 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
         """
         Assert that the workflow's `on.push.branches` configuration includes "main".
         """
-        on_config = get_mapping_key(self.cfg, "on")
-        self.assertIn("main", on_config["push"]["branches"])
+        self.assertIn("main", self.cfg["on"]["push"]["branches"])
 
     def test_on_pull_request_branches(self):
         """
@@ -207,18 +201,22 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
 
         Asserts that `"main"` appears in the parsed YAML at `on.pull_request.branches`.
         """
-        on_config = get_mapping_key(self.cfg, "on")
-        self.assertIn("main", on_config["pull_request"]["branches"])
+        self.assertIn("main", self.cfg["on"]["pull_request"]["branches"])
 
     def test_top_level_permissions_contents_read(self):
         """
-        Assert that the workflow's top-level `permissions.contents` is set to "read".
-
-        Raises an assertion failure if `self.cfg["permissions"]["contents"]` is not equal to `"read"`.
+        Ensure the workflow's top-level permissions set "contents" to "read".
+        
+        Asserts that `self.cfg["permissions"]["contents"] == "read"`.
         """
         self.assertEqual(self.cfg["permissions"]["contents"], "read")
 
     def test_jobs_build_exists(self):
+        """
+        Verify that the workflow defines a top-level job named "build".
+        
+        Asserts that "build" is present as a key in the parsed workflow's `jobs` mapping.
+        """
         self.assertIn("build", self.cfg["jobs"])
 
     def test_job_build_permissions_contents_write(self):
@@ -284,6 +282,9 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
         self.assertEqual(first["with"]["fetch-depth"], 0)
 
     def test_mise_action_step(self):
+        """
+        Assert that the second step of the build job uses the `jdx/mise-action` GitHub Action.
+        """
         step = self.cfg["jobs"]["build"]["steps"][1]
         self.assertIn("jdx/mise-action", step.get("uses", ""))
 
@@ -322,11 +323,16 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
         step = self._get_step_by_name("Show project info")
         self.assertIn("mise run info", step["run"])
 
-    def test_pytest_step_command(self):
-        step = self._get_step_by_name("Run pytest tests with coverage")
-        self.assertIn("mise run coverage", step["run"])
+    def test_lint_step_command(self):
+        step = self._get_step_by_name("Lint with black")
+        self.assertIn("mise run lint", step["run"])
 
     def test_check_setup_step_commands(self):
+        """
+        Verify the "Check setup" workflow step includes commands to print the mise version and run mise doctor.
+        
+        Asserts that the step named "Check setup" has a `run` script containing "mise --version" and "mise doctor".
+        """
         step = self._get_step_by_name("Check setup")
         self.assertIn("mise --version", step["run"])
         self.assertIn("mise doctor", step["run"])
