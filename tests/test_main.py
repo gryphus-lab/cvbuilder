@@ -36,6 +36,11 @@ class TestMainCLIParse(unittest.TestCase):
         mock_print.assert_any_call(f"❌ PDF not found: {missing_pdf.resolve()}")
 
     def test_parse_success_calls_parser_and_saves_json(self):
+        """
+        Verifies that the `parse` CLI command calls the parser and saves the resulting JSON.
+        
+        Creates a temporary PDF and output path, mocks `parse_cv_to_json` to return sample parsed data and `save_to_json` to intercept saving, then runs the CLI. Asserts that `parse_cv_to_json` is called with the resolved PDF path, `save_to_json` is called with the parsed data and output path, and that printed messages include the parsing and saved confirmations.
+        """
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
             pdf_path = tmp_path / "input.pdf"

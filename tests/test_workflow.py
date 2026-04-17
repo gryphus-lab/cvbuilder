@@ -30,13 +30,13 @@ def _raw_text() -> str:
 
 def _load_yaml() -> dict:
     """
-    Parse the workflow YAML file using PyYAML.
-
+    Load and parse the repository workflow YAML into a Python dictionary.
+    
     Returns:
-        config (dict): The parsed YAML content as a Python dictionary.
-
+        dict: Parsed YAML content from the workflow file.
+    
     Raises:
-        ImportError: If the `yaml` module (PyYAML) is not installed.
+        ImportError: If the `yaml` module is not installed.
     """
     import yaml  # type: ignore
 
@@ -63,6 +63,9 @@ class TestWorkflowRawContent(unittest.TestCase):
     """Structural checks using raw text – no YAML parser dependency."""
 
     def setUp(self):
+        """
+        Load the workflow file's raw UTF-8 contents into self.text for use by the test methods.
+        """
         self.text = _raw_text()
 
     # ----- Trigger configuration -----
@@ -108,9 +111,17 @@ class TestWorkflowRawContent(unittest.TestCase):
         self.assertIn("mise run bootstrap", self.text)
 
     def test_step_runs_mise_info(self):
+        """
+        Assert the workflow file contains the "mise run info" command.
+        
+        Fails the test if the substring "mise run info" is not present in the workflow's raw text.
+        """
         self.assertIn("mise run info", self.text)
 
     def test_step_checks_mise_version(self):
+        """
+        Verify the raw workflow text includes a step that runs "mise --version".
+        """
         self.assertIn("mise --version", self.text)
 
     def test_step_runs_mise_doctor(self):
@@ -156,9 +167,7 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
 
     def setUp(self):
         """
-        Load the repository workflow YAML into self.cfg for use by test methods.
-
-        The parsed YAML mapping of the workflow file is stored on self.cfg.
+        Parse the repository workflow YAML and assign the resulting mapping to `self.cfg` for use by the test methods.
         """
         self.cfg = _load_yaml()
 
@@ -166,6 +175,9 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
         self.assertEqual(self.cfg["name"], "Python application")
 
     def test_on_push_branches(self):
+        """
+        Assert that the workflow's `on.push.branches` configuration includes "main".
+        """
         self.assertIn("main", self.cfg["on"]["push"]["branches"])
 
     def test_on_pull_request_branches(self):
@@ -177,12 +189,22 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
         self.assertIn("main", self.cfg["on"]["pull_request"]["branches"])
 
     def test_top_level_permissions_contents_read(self):
+        """
+        Assert that the workflow's top-level `permissions.contents` is set to "read".
+        
+        Raises an assertion failure if `self.cfg["permissions"]["contents"]` is not equal to `"read"`.
+        """
         self.assertEqual(self.cfg["permissions"]["contents"], "read")
 
     def test_jobs_build_exists(self):
         self.assertIn("build", self.cfg["jobs"])
 
     def test_job_build_permissions_contents_write(self):
+        """
+        Asserts that the workflow's `build` job grants write access to repository contents.
+        
+        Verifies that `self.cfg["jobs"]["build"]["permissions"]["contents"]` is equal to `"write"`.
+        """
         build_perms = self.cfg["jobs"]["build"]["permissions"]
         self.assertEqual(build_perms["contents"], "write")
 
@@ -225,10 +247,9 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
 
     def test_checkout_step_is_first(self):
         """
-        Assert that the first step in the `build` job uses the checkout action.
-
-        Verifies the first entry in self.cfg["jobs"]["build"]["steps"] has a `uses`
-        value containing "actions/checkout".
+        Check that the first step of the `build` job uses the checkout action.
+        
+        Verifies that the `uses` value of the first entry in `self.cfg["jobs"]["build"]["steps"]` contains the substring "actions/checkout".
         """
         first = self.cfg["jobs"]["build"]["steps"][0]
         self.assertIn("actions/checkout", first.get("uses", ""))
