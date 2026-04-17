@@ -94,7 +94,7 @@ class TestBootstrapTask(MiseTestBase):
     def test_bootstrap_first_command_is_darwin_guarded(self):
         """
         Verify the first bootstrap run command is guarded to execute only on macOS.
-        
+
         Asserts the command references `OSTYPE`, contains `darwin`, and includes the `if [[`, `then`, and `fi` conditional markers.
         """
         first_cmd = self.bootstrap["run"][0]
@@ -103,7 +103,7 @@ class TestBootstrapTask(MiseTestBase):
     def test_bootstrap_first_command_contains_brew_symlink(self):
         """
         Assert that the first command in the bootstrap task's `run` list creates a Homebrew symlink and references the Python sysconfig path.
-        
+
         The test checks that the command string contains:
         - the symlink invocation `"ln -s"`,
         - the Homebrew library prefix `"$(brew --prefix)/lib/*"`,
@@ -117,7 +117,7 @@ class TestBootstrapTask(MiseTestBase):
     def test_bootstrap_first_command_does_not_run_unconditionally(self):
         """
         Ensure the first bootstrap command does not run an unguarded 'ln -s' symlink.
-        
+
         Asserts that, after stripping leading whitespace, the first command in the bootstrap task does not start with "ln -s", guaranteeing the brew symlink is protected by an OS-type guard.
         """
         first_cmd = self.bootstrap["run"][0]
@@ -299,7 +299,7 @@ class TestBootstrapGuardCompleteness(MiseTestBase):
     def setUp(self):
         """
         Prepare test fixture by loading the repository's mise.toml configuration and storing the first command from the bootstrap task.
-        
+
         The parsed TOML mapping is stored on `self.config`. The first bootstrap task command (the first element of `config["tasks"]["bootstrap"]["run"]`) is stored on `self.first_cmd`.
         """
         self.config = load_mise_config()
@@ -332,9 +332,7 @@ class TestBootstrapGuardCompleteness(MiseTestBase):
         The macOS guard command should span multiple logical parts
         (at minimum more than one shell keyword), confirming it is not trivial.
         """
-        keywords_found = sum(
-            1 for kw in ["if", "then", "fi"] if kw in self.first_cmd
-        )
+        keywords_found = sum(1 for kw in ["if", "then", "fi"] if kw in self.first_cmd)
         self.assertGreaterEqual(keywords_found, 3)
 
 
@@ -450,9 +448,21 @@ class TestAdditionalTasks(unittest.TestCase):
 
     def test_all_expected_tasks_are_present(self):
         """All nine canonical tasks must exist in the tasks section."""
-        expected = {"bootstrap", "info", "parse", "build", "full", "lint", "format", "test", "coverage"}
+        expected = {
+            "bootstrap",
+            "info",
+            "parse",
+            "build",
+            "full",
+            "lint",
+            "format",
+            "test",
+            "coverage",
+        }
         for task_name in expected:
-            self.assertIn(task_name, self.tasks, f"Task '{task_name}' missing from mise.toml")
+            self.assertIn(
+                task_name, self.tasks, f"Task '{task_name}' missing from mise.toml"
+            )
 
 
 if __name__ == "__main__":

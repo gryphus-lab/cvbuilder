@@ -8,7 +8,7 @@ from src.builder.cv_builder import CVBuilder
 def sample_cv_data():
     """
     Provide a minimal, valid CV data dictionary used by tests.
-    
+
     The dictionary contains these top-level keys:
     - personal_info: mapping with name, title, address, phone, and email
     - profile: short summary string
@@ -19,7 +19,7 @@ def sample_cv_data():
     - languages: list of language strings
     - competencies_and_skills: mapping from competency category to list of skills
     - volunteering: list of volunteering entries
-    
+
     Returns:
         dict: A sample CV data structure matching the layout described above.
     """
@@ -75,7 +75,13 @@ def minimal_cv_payload():
         dict: A minimal CV data structure with all required keys but minimal content.
     """
     return {
-        "personal_info": {"name": "A", "title": "B", "address": "C", "phone": "D", "email": "e@f.g"},
+        "personal_info": {
+            "name": "A",
+            "title": "B",
+            "address": "C",
+            "phone": "D",
+            "email": "e@f.g",
+        },
         "profile": "Profile text",
         "strategic_impact": [],
         "professional_experience": [],
@@ -148,9 +154,12 @@ def test_photo_path_resolution(builder, sample_cv_data, tmp_path, monkeypatch):
     # Change to tmp_path so the relative path is resolved from there
     monkeypatch.chdir(tmp_path)
 
-    with patch.object(
-        CVBuilder, "_render_html", return_value="<html></html>"
-    ) as mock_render, patch("src.builder.cv_builder.HTML"):  # Avoid actual PDF generation
+    with (
+        patch.object(
+            CVBuilder, "_render_html", return_value="<html></html>"
+        ) as mock_render,
+        patch("src.builder.cv_builder.HTML"),
+    ):  # Avoid actual PDF generation
         builder.build(sample_cv_data, tmp_path / "out.pdf", photo_path="me.jpg")
 
         # Get the second argument (photo) passed to _render_html
@@ -374,7 +383,9 @@ def test_render_html_photo_none_omits_img(builder, sample_cv_data):
 
 
 @patch("src.builder.cv_builder.HTML")
-def test_build_success_prints_output_path(mock_html_class, builder, sample_cv_data, tmp_path, capsys):
+def test_build_success_prints_output_path(
+    mock_html_class, builder, sample_cv_data, tmp_path, capsys
+):
     """build() must print a success message that includes the output path."""
     output_file = tmp_path / "cv.pdf"
     mock_html_class.return_value = MagicMock()
@@ -394,7 +405,9 @@ def test_build_photo_path_as_string(mock_html_class, builder, sample_cv_data, tm
     mock_html_instance = MagicMock()
     mock_html_class.return_value = mock_html_instance
 
-    with patch.object(CVBuilder, "_render_html", return_value="<html></html>") as mock_render:
+    with patch.object(
+        CVBuilder, "_render_html", return_value="<html></html>"
+    ) as mock_render:
         builder.build(sample_cv_data, output_file, photo_path=str(fake_photo))
         called_photo_url = mock_render.call_args[0][1]
         assert called_photo_url == fake_photo.resolve().as_uri()

@@ -63,7 +63,9 @@ def test_parse_experience():
     assert jobs[0]["company"] == "TechCorp"
     assert jobs[0]["location"] == "Berlin"
     assert jobs[0]["dates"] == "01/2020 - Present"
-    assert any("Migration Impact: Moved to cloud" in ach for ach in jobs[0]["achievements"])
+    assert any(
+        "Migration Impact: Moved to cloud" in ach for ach in jobs[0]["achievements"]
+    )
     assert _ == 4  # Index of EDUCATION
 
 
@@ -432,7 +434,14 @@ def test_parse_experience_extracts_all_required_fields():
     ]
     jobs, _ = _parse_experience(lines, 0)
     assert len(jobs) == 1
-    required_keys = {"title", "company", "location", "dates", "description", "achievements"}
+    required_keys = {
+        "title",
+        "company",
+        "location",
+        "dates",
+        "description",
+        "achievements",
+    }
     assert required_keys == set(jobs[0].keys())
 
 
