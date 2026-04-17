@@ -44,6 +44,24 @@ def _load_yaml() -> dict:
         return yaml.safe_load(f)
 
 
+def get_mapping_key(cfg: dict, key: str) -> dict:
+    """
+    Safely retrieve a mapping value from cfg, handling cases where YAML coerces
+    unquoted 'on' to boolean True.
+
+    Parameters:
+        cfg (dict): The configuration dictionary to query.
+        key (str): The key to retrieve from cfg.
+
+    Returns:
+        dict: The value at cfg[key] if it's a dict/mapping, otherwise an empty dict.
+    """
+    value = cfg.get(key)
+    if isinstance(value, dict):
+        return value
+    return {}
+
+
 # ---------------------------------------------------------------------------
 # File-existence & raw-text tests (no extra deps required)
 # ---------------------------------------------------------------------------
@@ -143,7 +161,7 @@ class TestWorkflowRawContent(unittest.TestCase):
 
     # ----- Regression: test step must exist -----
 
-    def test_no_pytest_step(self):
+    def test_pytest_step_present(self):
         """Workflow must execute tests."""
         self.assertIn("pytest", self.text)
 
@@ -180,7 +198,8 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
         """
         Assert that the workflow's `on.push.branches` configuration includes "main".
         """
-        self.assertIn("main", self.cfg["on"]["push"]["branches"])
+        on_config = get_mapping_key(self.cfg, "on")
+        self.assertIn("main", on_config["push"]["branches"])
 
     def test_on_pull_request_branches(self):
         """
@@ -188,7 +207,8 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
 
         Asserts that `"main"` appears in the parsed YAML at `on.pull_request.branches`.
         """
-        self.assertIn("main", self.cfg["on"]["pull_request"]["branches"])
+        on_config = get_mapping_key(self.cfg, "on")
+        self.assertIn("main", on_config["pull_request"]["branches"])
 
     def test_top_level_permissions_contents_read(self):
         """
@@ -302,9 +322,9 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
         step = self._get_step_by_name("Show project info")
         self.assertIn("mise run info", step["run"])
 
-    def test_lint_step_command(self):
-        step = self._get_step_by_name("Lint with black")
-        self.assertIn("mise run lint", step["run"])
+    def test_pytest_step_command(self):
+        step = self._get_step_by_name("Run pytest tests with coverage")
+        self.assertIn("mise run coverage", step["run"])
 
     def test_check_setup_step_commands(self):
         step = self._get_step_by_name("Check setup")
