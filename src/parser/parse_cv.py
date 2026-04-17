@@ -73,25 +73,15 @@ def final_sanitize(text: str) -> str:
     if not text:
         return ""
 
-    OCR_REPLACEMENTS = {
-        "ii": "ü",
-        "Al-": "AI-",
-        "OpenAl": "OpenAI",
-        "Al ": "AI ",
-        "¢": "",
-        "©": "",
-        "•": "",
-    }
-
-    for old, new in OCR_REPLACEMENTS.items():
-        text = text.replace(old, new)
+    # Only the real OCR issue you mentioned
+    text = text.replace("ii", "ü")
 
     for kw in ACHIEVEMENT_KEYWORDS + SKILL_KEYWORDS + STRATEGIC_KEYWORDS:
         double_pattern = rf"\b({re.escape(kw)})\s+({re.escape(kw)})\b"
         text = re.sub(double_pattern, r"\1", text, flags=re.IGNORECASE)
 
     text = re.sub(r"\s+", " ", text)
-    text = re.sub(r"\s*[:]\s*", ": ", text)  # Normalize colons
+    text = re.sub(r"\s*[:]\s*", ": ", text)
     text = re.sub(r"\bNativ\b", "Native", text)
 
     return text.strip()
@@ -130,6 +120,40 @@ def semantic_bullet_split(text: str, keywords: list) -> tuple[str, list[str]]:
     return lead_in, bullets
 
 
+def _parse_personal_info(lines: List[str]) -> Dict[str, str]:
+    """Parse personal info directly from the raw OCR output (no hardcoded strings)."""
+    info = {}
+    for line in lines[:20]:  # only top of document
+        # Email
+        email_match = re.search(r"[\w\.-]+@[\w\.-]+\.\w+", line)
+        if email_match:
+            info["email"] = email_match.group(0)
+        # Phone
+        phone_match = re.search(r"\+41\s?\d{2}\s?\d{3}\s?\d{2}\s?\d{2}", line)
+        if phone_match:
+            info["phone"] = phone_match.group(0)
+        # Date of Birth
+        dob_match = re.search(r"Date of Birth:\s*([\d.]+)", line)
+        if dob_match:
+            info["date_of_birth"] = dob_match.group(1)
+        # Nationality
+        nat_match = re.search(r"Nationality:\s*(\w+)", line)
+        if nat_match:
+            info["nationality"] = nat_match.group(1)
+        # Permit
+        permit_match = re.search(r"Permit:\s*(.+?)(?:\s+|$)", line)
+        if permit_match:
+            info["permit"] = permit_match.group(1).strip()
+        # Address (first line that looks like an address)
+        if (
+            not info.get("address")
+            and any(c.isdigit() for c in line)
+            and "Date of Birth" not in line
+        ):
+            info["address"] = line.strip()
+    return info
+
+
 def _parse_experience(lines: list[str], start_idx: int) -> tuple[list[dict], int]:
     jobs = []
     i = start_idx + 1
@@ -139,13 +163,17 @@ def _parse_experience(lines: list[str], start_idx: int) -> tuple[list[dict], int
         if _is_header(line):
             break
 
-        job_match = re.search(r"(.+?),\s*(.+?),\s*(.+?)\s*\((.+?)\)", line)
+        job_match = re.search(r"(.+?),\s*(.+?)(?:,\s*(.+?))?\s*\((.+?)\)", line)
 
         if job_match:
             job = {
                 "title": job_match.group(1).strip(),
                 "company": job_match.group(2).strip(),
-                "location": final_sanitize(job_match.group(3).strip()),
+                "location": (
+                    final_sanitize(job_match.group(3).strip())
+                    if job_match.group(3)
+                    else ""
+                ),
                 "dates": job_match.group(4).strip(),
                 "description": "",
                 "achievements": [],
@@ -193,7 +221,7 @@ def parse_cv_to_json(pdf_path: str):
 
     lines = [l.strip() for l in raw_text.split("\n") if l.strip()]
     cv_data = {
-        "personal_info": [],
+        "personal_info": {},
         "profile": "",
         "strategic_impact": [],
         "professional_experience": [],
@@ -204,19 +232,51 @@ def parse_cv_to_json(pdf_path: str):
         "volunteering": [],
     }
 
+    # === PERSONAL INFO - parsed once from the very top ===
+    cv_data["personal_info"] = _parse_personal_info(lines)
+
     i = 0
     while i < len(lines):
         line_upper = lines[i].upper().strip().rstrip(":")
 
         if line_upper == "PROFILE":
-            content, i = _parse_generic_section(lines, i)
-            cv_data["profile"] = final_sanitize(" ".join(content))
+            cv_data["profile"], i = _parse_generic_section(lines, i)
         elif line_upper == "PROFESSIONAL EXPERIENCE":
             cv_data["professional_experience"], i = _parse_experience(lines, i)
         elif line_upper == "STRATEGIC IMPACT & TRANSFORMATIONS":
             content, i = _parse_generic_section(lines, i)
             _, bullets = semantic_bullet_split(" ".join(content), STRATEGIC_KEYWORDS)
             cv_data["strategic_impact"] = bullets
+        elif line_upper == "EDUCATION":
+            content, i = _parse_generic_section(lines, i)
+            edu = []
+            for item in content:
+                if "Indian Institute" in item:
+                    edu.append({"institution": final_sanitize(item)})
+                elif "Bachelor of Technology" in item:
+                    if edu:
+                        edu[-1]["degree"] = final_sanitize(item)
+                    else:
+                        edu.append({"degree": final_sanitize(item)})
+            cv_data["education"] = edu
+        elif line_upper == "LANGUAGES":
+            content, i = _parse_generic_section(lines, i)
+            languages = []
+            current = None
+            for line in content:
+                line = final_sanitize(line)
+                if line and "linkedin.com" not in line.lower():
+                    if line.startswith("•") or "English" in line or "German" in line:
+                        if current:
+                            languages.append(current)
+                        current = re.sub(r"^\s*•\s*", "", line).strip()
+                    elif current:
+                        current += " " + line
+                    else:
+                        current = line
+            if current:
+                languages.append(current)
+            cv_data["languages"] = languages
         elif line_upper == "COMPETENCIES AND SKILLS":
             content, i = _parse_generic_section(lines, i)
             _, skill_blocks = semantic_bullet_split(" ".join(content), SKILL_KEYWORDS)
@@ -224,8 +284,10 @@ def parse_cv_to_json(pdf_path: str):
             for block in skill_blocks:
                 if ":" in block:
                     cat, vals = block.split(":", 1)
-                    skills_dict[cat.strip()] = [
-                        v.strip() for v in re.split(r"[;,]", vals) if v.strip()
+                    skills_dict[final_sanitize(cat.strip())] = [
+                        final_sanitize(v.strip())
+                        for v in re.split(r"[;,]", vals)
+                        if v.strip()
                     ]
             cv_data["competencies_and_skills"] = skills_dict
         elif line_upper in SECTION_HEADERS:
@@ -233,18 +295,12 @@ def parse_cv_to_json(pdf_path: str):
             content, i = _parse_generic_section(lines, i)
             cv_data[key] = [final_sanitize(item) for item in content]
         else:
-            if "@" in lines[i] and "email" not in cv_data["personal_info"]:
-                email = re.search(r"[\w\.-]+@[\w\.-]+\.\w+", lines[i])
-                if email:
-                    cv_data["personal_info"] = email.group(0)
             i += 1
 
     return cv_data
 
 
 def save_to_json(data: Dict[str, Any], output_path: Path) -> None:
-    import json
-
     output_path.parent.mkdir(exist_ok=True, parents=True)
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
