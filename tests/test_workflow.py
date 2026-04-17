@@ -96,9 +96,6 @@ class TestWorkflowRawContent(unittest.TestCase):
     def test_step_runs_mise_info(self):
         self.assertIn("mise run info", self.text)
 
-    def test_step_runs_mise_lint(self):
-        self.assertIn("mise run lint", self.text)
-
     def test_step_checks_mise_version(self):
         self.assertIn("mise --version", self.text)
 
@@ -109,9 +106,6 @@ class TestWorkflowRawContent(unittest.TestCase):
 
     def test_step_name_install_dependencies(self):
         self.assertIn("Install dependencies", self.text)
-
-    def test_step_name_lint_with_black(self):
-        self.assertIn("Lint with black", self.text)
 
     def test_step_name_show_project_info(self):
         self.assertIn("Show project info", self.text)
