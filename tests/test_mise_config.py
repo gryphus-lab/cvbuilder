@@ -18,8 +18,8 @@ MISE_TOML = REPO_ROOT / "mise.toml"
 
 def load_mise_config() -> dict:
     """
-    Load and parse the repository's mise.toml configuration from the configured MISE_TOML path.
-
+    Load and parse the repository's mise.toml configuration.
+    
     Returns:
         dict: Parsed TOML configuration mapping.
     """
@@ -58,6 +58,11 @@ class TestMiseTomlParses(unittest.TestCase):
         self.assertIn("tasks", config)
 
     def test_tools_section_exists(self):
+        """
+        Asserts that the parsed mise.toml configuration contains a top-level "tools" section.
+        
+        This test loads the repository mise.toml and verifies the "tools" key is present in the resulting mapping.
+        """
         config = load_mise_config()
         self.assertIn("tools", config)
 
@@ -67,9 +72,9 @@ class TestBootstrapTask(MiseTestBase):
 
     def setUp(self):
         """
-        Prepare test fixtures by loading the repository's mise.toml and extracting the 'bootstrap' task.
-
-        Sets self.config to the parsed TOML mapping and self.bootstrap to config["tasks"]["bootstrap"] for use by test methods.
+        Prepare test fixtures by loading the repository mise.toml and setting up the bootstrap task.
+        
+        Loads the repository's mise.toml into self.config and sets self.bootstrap to the task mapping at config["tasks"]["bootstrap"] for use by test methods.
         """
         self.config = load_mise_config()
         self.bootstrap = self.config["tasks"]["bootstrap"]
@@ -329,8 +334,9 @@ class TestBootstrapGuardCompleteness(MiseTestBase):
 
     def test_bootstrap_first_command_is_multiline_or_compound(self):
         """
-        The macOS guard command should span multiple logical parts
-        (at minimum more than one shell keyword), confirming it is not trivial.
+        Assert the macOS guard command contains the shell keywords "if", "then", and "fi".
+        
+        This ensures the first bootstrap command is a compound/multiline guard rather than a trivial single-word command by requiring all three shell markers to be present.
         """
         keywords_found = sum(1 for kw in ["if", "then", "fi"] if kw in self.first_cmd)
         self.assertGreaterEqual(keywords_found, 3)
@@ -343,6 +349,13 @@ class TestBootstrapGuardOrdering(unittest.TestCase):
     """
 
     def setUp(self):
+        """
+        Set up test fixtures by loading the repository's mise.toml and caching the bootstrap task's first run command.
+        
+        Attributes:
+            config (dict): Parsed TOML configuration from mise.toml.
+            first_cmd (str): The first command string in `tasks.bootstrap.run`.
+        """
         self.config = load_mise_config()
         self.first_cmd = self.config["tasks"]["bootstrap"]["run"][0]
 
@@ -400,6 +413,13 @@ class TestAdditionalTasks(unittest.TestCase):
     """
 
     def setUp(self):
+        """
+        Prepare test fixture by loading the repository's mise.toml and caching its parsed configuration and tasks mapping.
+        
+        Sets:
+        - self.config: Parsed TOML configuration as a dict.
+        - self.tasks: Shortcut to self.config["tasks"] for use in tests.
+        """
         self.config = load_mise_config()
         self.tasks = self.config["tasks"]
 
