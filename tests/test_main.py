@@ -27,14 +27,6 @@ class TestMainCLIParse(unittest.TestCase):
             self.assertEqual(exc.exception.code, 1)
             mock_print.assert_any_call(f"❌ PDF not found: {missing_pdf.resolve()}")
 
-        with patch.object(sys, "argv", ["main.py", "parse", str(missing_pdf)]):
-            with patch("builtins.print") as mock_print:
-                with self.assertRaises(SystemExit) as exc:
-                    cli_main.main()
-
-        self.assertEqual(exc.exception.code, 1)
-        mock_print.assert_any_call(f"❌ PDF not found: {missing_pdf.resolve()}")
-
     def test_parse_success_calls_parser_and_saves_json(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
@@ -61,19 +53,20 @@ class TestMainCLIParse(unittest.TestCase):
 
 
 class TestMainCLIBuild(unittest.TestCase):
-    def test_build_exits_when_json_is_missing(self, tmp_path):
-        missing_json = tmp_path / "missing_input.json"
+    def test_build_exits_when_json_is_missing(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            missing_json = Path(tmp_dir) / "missing_input.json"
 
-        with patch.object(
-            sys, "argv", ["main.py", "build", "--json", str(missing_json)]
-        ):
-            with patch("builtins.print") as mock_print:
-                with self.assertRaises(SystemExit) as exc:
-                    cli_main.main()
+            with patch.object(
+                sys, "argv", ["main.py", "build", "--json", str(missing_json)]
+            ):
+                with patch("builtins.print") as mock_print:
+                    with self.assertRaises(SystemExit) as exc:
+                        cli_main.main()
 
-        self.assertEqual(exc.exception.code, 1)
-        mock_print.assert_any_call(f"❌ JSON not found: {missing_json.resolve()}")
-        mock_print.assert_any_call("   Run: python main.py parse   first")
+            self.assertEqual(exc.exception.code, 1)
+            mock_print.assert_any_call(f"❌ JSON not found: {missing_json.resolve()}")
+            mock_print.assert_any_call("   Run: python main.py parse   first")
 
     def test_build_success_loads_json_and_calls_builder(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

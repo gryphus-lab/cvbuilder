@@ -67,17 +67,22 @@ class TestBootstrapTask(unittest.TestCase):
     def test_bootstrap_first_command_has_macos_ostype_guard(self):
         """The brew symlink command must be guarded by an OSTYPE darwin check."""
         first_cmd = self.bootstrap["run"][0]
-        self.assertIn("[[ $OSTYPE == 'darwin'*", first_cmd)
+        self.assertIn("OSTYPE", first_cmd)
+        self.assertIn("darwin", first_cmd)
+        self.assertIn("[[", first_cmd)
 
     def test_bootstrap_first_command_uses_conditional_and(self):
-        """The macOS guard uses && so the symlink only runs on Darwin."""
+        """The macOS guard is implemented as an if/then block around the symlink."""
         first_cmd = self.bootstrap["run"][0]
-        self.assertIn("]]", first_cmd)
-        self.assertIn("&&", first_cmd)
+        self.assertIn("if [[", first_cmd)
+        self.assertIn("then", first_cmd)
+        self.assertIn("fi", first_cmd)
 
     def test_bootstrap_first_command_contains_brew_symlink(self):
         first_cmd = self.bootstrap["run"][0]
-        self.assertIn("ln -s $(brew --prefix)/lib/*", first_cmd)
+        self.assertIn("ln -s", first_cmd)
+        self.assertIn("$(brew --prefix)/lib/*", first_cmd)
+        self.assertIn("sysconfig.get_path", first_cmd)
 
     def test_bootstrap_first_command_is_darwin_guarded(self):
         """
@@ -88,7 +93,8 @@ class TestBootstrapTask(unittest.TestCase):
         first_cmd = self.bootstrap["run"][0]
         self.assertIn("OSTYPE", first_cmd)
         self.assertIn("darwin", first_cmd)
-        self.assertIn("&&", first_cmd)
+        self.assertIn("if [[", first_cmd)
+        self.assertIn("fi", first_cmd)
 
     def test_bootstrap_first_command_does_not_run_unconditionally(self):
         """Previous behaviour ran brew unconditionally; ensure that raw unconditional form is gone."""
