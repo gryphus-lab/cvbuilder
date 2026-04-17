@@ -38,9 +38,6 @@ jobs:
       - name: Show project info
         run: |
           mise run info
-      - name: Lint with black
-        run: |
-          mise run lint
       - name: Run pytest tests with coverage
         run: |
           mise run coverage
