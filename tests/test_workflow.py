@@ -54,7 +54,7 @@ class TestWorkflowRawContent(unittest.TestCase):
     # ----- Trigger configuration -----
 
     def test_triggers_on_push_to_main(self):
-        self.assertIn('branches: [ "main" ]', self.text)
+        self.assertRegex(self.text, r'branches:\s*\[\s*"main"\s*\]')
 
     def test_triggers_on_pull_request(self):
         self.assertIn("pull_request:", self.text)

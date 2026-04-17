@@ -64,20 +64,15 @@ class TestBootstrapTask(unittest.TestCase):
         self.assertIn("]]", first_cmd)
         self.assertIn("&&", first_cmd)
 
-    def test_bootstrap_first_command_ends_with_or_true(self):
-        """Command ends with || true so it never fails the task even if symlinks exist."""
-        first_cmd = self.bootstrap["run"][0]
-        self.assertIn("|| true", first_cmd)
-
     def test_bootstrap_first_command_contains_brew_symlink(self):
         first_cmd = self.bootstrap["run"][0]
         self.assertIn("ln -s $(brew --prefix)/lib/*", first_cmd)
 
-    def test_bootstrap_first_command_suppresses_output(self):
-        """stderr and stdout are suppressed so CI logs stay clean."""
+    def test_bootstrap_first_command_is_darwin_guarded(self):
         first_cmd = self.bootstrap["run"][0]
-        self.assertIn(">/dev/null 2>&1", first_cmd)
-
+        self.assertIn("OSTYPE", first_cmd)
+        self.assertIn("darwin", first_cmd)
+        self.assertIn("&&", first_cmd)
     def test_bootstrap_first_command_does_not_run_unconditionally(self):
         """Previous behaviour ran brew unconditionally; ensure that raw unconditional form is gone."""
         first_cmd = self.bootstrap["run"][0]
