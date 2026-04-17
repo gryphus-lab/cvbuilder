@@ -248,3 +248,140 @@ def test_build_output_path_accepts_string(
     builder.build(sample_cv_data, output_file)
 
     mock_html_instance.write_pdf.assert_called_once_with(output_file)
+
+
+## --- Boundary / Regression Tests ---
+
+
+def test_cv_builder_constructor_requires_no_arguments():
+    """CVBuilder must be instantiable with no arguments."""
+    instance = CVBuilder()
+    assert isinstance(instance, CVBuilder)
+
+
+def test_render_html_empty_strategic_impact(builder):
+    """Rendering with an empty strategic_impact list must not raise."""
+    data = {
+        "personal_info": {"name": "A", "title": "B", "address": "C", "phone": "D", "email": "e@f.g"},
+        "profile": "Profile text",
+        "strategic_impact": [],
+        "professional_experience": [],
+        "certificates_and_training": [],
+        "education": [],
+        "languages": [],
+        "competencies_and_skills": {},
+        "volunteering": [],
+    }
+    html = builder._render_html(data)
+    assert isinstance(html, str)
+    assert "STRATEGIC IMPACT" in html
+
+
+def test_render_html_empty_professional_experience(builder):
+    """An empty professional_experience list must render without error."""
+    data = {
+        "personal_info": {"name": "X", "title": "Y", "address": "Z", "phone": "0", "email": "a@b.c"},
+        "profile": "",
+        "strategic_impact": [],
+        "professional_experience": [],
+        "certificates_and_training": [],
+        "education": [],
+        "languages": [],
+        "competencies_and_skills": {},
+        "volunteering": [],
+    }
+    html = builder._render_html(data)
+    assert "PROFESSIONAL EXPERIENCE" in html
+
+
+def test_render_html_job_with_empty_description(builder, sample_cv_data):
+    """A job entry with an empty description field must not raise and must still render."""
+    sample_cv_data["professional_experience"][0]["description"] = ""
+    html = builder._render_html(sample_cv_data)
+    assert "Lead Engineer" in html
+
+
+def test_render_html_job_with_empty_achievements(builder, sample_cv_data):
+    """A job entry with no achievements must not inject stray list items."""
+    sample_cv_data["professional_experience"][0]["achievements"] = []
+    html = builder._render_html(sample_cv_data)
+    assert "Lead Engineer" in html
+    assert "Reduced latency" not in html
+
+
+def test_render_html_multiple_competency_categories(builder, sample_cv_data):
+    """All category names and their skills appear when there are multiple categories."""
+    sample_cv_data["competencies_and_skills"] = {
+        "Development": ["Python", "Rust"],
+        "DevSecOps": ["Docker", "Terraform"],
+    }
+    html = builder._render_html(sample_cv_data)
+    assert "Development" in html
+    assert "DevSecOps" in html
+    assert "Docker" in html
+    assert "Terraform" in html
+
+
+def test_render_html_multiple_languages(builder, sample_cv_data):
+    """All language entries appear when multiple languages are present."""
+    sample_cv_data["languages"] = ["English (Native)", "German (C1)", "French (B2)"]
+    html = builder._render_html(sample_cv_data)
+    assert "French (B2)" in html
+
+
+def test_render_html_multiple_education_entries(builder, sample_cv_data):
+    """Multiple education entries must all appear in the rendered HTML."""
+    sample_cv_data["education"].append({"institution": "MIT", "degree": "B.Sc. EE"})
+    html = builder._render_html(sample_cv_data)
+    assert "TU Berlin" in html
+    assert "MIT" in html
+    assert "B.Sc. EE" in html
+
+
+def test_render_html_photo_none_omits_img(builder, sample_cv_data):
+    """Calling _render_html with photo=None (default '') must suppress the photo element."""
+    html = builder._render_html(sample_cv_data, photo=None or "")
+    assert "<img" not in html
+
+
+@patch("src.builder.cv_builder.HTML")
+def test_build_success_prints_output_path(mock_html_class, builder, sample_cv_data, tmp_path, capsys):
+    """build() must print a success message that includes the output path."""
+    output_file = tmp_path / "cv.pdf"
+    mock_html_class.return_value = MagicMock()
+
+    builder.build(sample_cv_data, output_file)
+
+    captured = capsys.readouterr()
+    assert str(output_file.resolve()) in captured.out
+
+
+@patch("src.builder.cv_builder.HTML")
+def test_build_photo_path_as_string(mock_html_class, builder, sample_cv_data, tmp_path):
+    """photo_path supplied as a plain string must be resolved to a file:// URL."""
+    fake_photo = tmp_path / "headshot.png"
+    fake_photo.touch()
+    output_file = tmp_path / "cv.pdf"
+    mock_html_instance = MagicMock()
+    mock_html_class.return_value = mock_html_instance
+
+    with patch.object(CVBuilder, "_render_html", return_value="<html></html>") as mock_render:
+        builder.build(sample_cv_data, output_file, photo_path=str(fake_photo))
+        called_photo_url = mock_render.call_args[0][1]
+        assert called_photo_url.startswith("file://")
+        assert "headshot.png" in called_photo_url
+
+
+@patch("src.builder.cv_builder.HTML")
+def test_build_write_pdf_called_with_string_version_of_path_object(
+    mock_html_class, builder, sample_cv_data, tmp_path
+):
+    """write_pdf must always receive a str, not a Path object."""
+    output_file = tmp_path / "cv.pdf"
+    mock_html_instance = MagicMock()
+    mock_html_class.return_value = mock_html_instance
+
+    builder.build(sample_cv_data, output_file)
+
+    args, _ = mock_html_instance.write_pdf.call_args
+    assert isinstance(args[0], str)

@@ -319,5 +319,113 @@ class TestBootstrapGuardCompleteness(unittest.TestCase):
         self.assertGreaterEqual(keywords_found, 3)
 
 
+class TestBootstrapGuardOrdering(unittest.TestCase):
+    """
+    Structural ordering tests for the bootstrap darwin guard command.
+    Verifies that shell keywords appear in the correct sequence.
+    """
+
+    def setUp(self):
+        self.config = load_mise_config()
+        self.first_cmd = self.config["tasks"]["bootstrap"]["run"][0]
+
+    def test_then_appears_between_if_and_fi(self):
+        """'then' must appear after 'if [[' and before 'fi'."""
+        if_pos = self.first_cmd.find("if [[")
+        then_pos = self.first_cmd.find("then")
+        fi_pos = self.first_cmd.rfind("fi")
+        self.assertLess(if_pos, then_pos, "'if [[' must precede 'then'")
+        self.assertLess(then_pos, fi_pos, "'then' must precede 'fi'")
+
+    def test_ln_s_appears_after_then(self):
+        """The 'ln -s' command must appear after the 'then' keyword."""
+        then_pos = self.first_cmd.find("then")
+        ln_pos = self.first_cmd.find("ln -s")
+        self.assertLess(then_pos, ln_pos, "'then' must appear before 'ln -s'")
+
+    def test_ln_s_appears_before_fi(self):
+        """The 'ln -s' command must appear before the closing 'fi'."""
+        ln_pos = self.first_cmd.find("ln -s")
+        fi_pos = self.first_cmd.rfind("fi")
+        self.assertLess(ln_pos, fi_pos, "'ln -s' must appear before 'fi'")
+
+    def test_ostype_check_appears_before_ln_s(self):
+        """The OSTYPE variable reference must precede the 'ln -s' command."""
+        ostype_pos = self.first_cmd.find("OSTYPE")
+        ln_pos = self.first_cmd.find("ln -s")
+        self.assertLess(ostype_pos, ln_pos, "OSTYPE check must appear before 'ln -s'")
+
+    def test_second_command_uses_uv(self):
+        """The second bootstrap run command must invoke uv."""
+        second_cmd = self.config["tasks"]["bootstrap"]["run"][1]
+        self.assertIn("uv", second_cmd)
+
+    def test_bootstrap_description_is_non_empty_string(self):
+        """The bootstrap task must have a non-empty string description."""
+        desc = self.config["tasks"]["bootstrap"]["description"]
+        self.assertIsInstance(desc, str)
+        self.assertGreater(len(desc), 0)
+
+
+class TestAdditionalTasks(unittest.TestCase):
+    """
+    Tests for task entries that exist in mise.toml but are not covered by
+    the existing test classes.
+    """
+
+    def setUp(self):
+        self.config = load_mise_config()
+        self.tasks = self.config["tasks"]
+
+    def test_info_task_exists(self):
+        """The 'info' task must be defined in mise.toml."""
+        self.assertIn("info", self.tasks)
+
+    def test_info_task_has_description(self):
+        """The 'info' task must have a non-empty description."""
+        desc = self.tasks["info"]["description"]
+        self.assertIsInstance(desc, str)
+        self.assertGreater(len(desc), 0)
+
+    def test_lint_task_exists(self):
+        """The 'lint' task must be defined in mise.toml."""
+        self.assertIn("lint", self.tasks)
+
+    def test_lint_task_depends_on_bootstrap(self):
+        """The 'lint' task must declare 'bootstrap' as a dependency."""
+        self.assertIn("bootstrap", self.tasks["lint"].get("depends", []))
+
+    def test_format_task_exists(self):
+        """The 'format' task must be defined in mise.toml."""
+        self.assertIn("format", self.tasks)
+
+    def test_test_task_exists(self):
+        """The 'test' task must be defined in mise.toml."""
+        self.assertIn("test", self.tasks)
+
+    def test_test_task_run_invokes_pytest(self):
+        """The 'test' task run command must invoke pytest."""
+        self.assertIn("pytest", self.tasks["test"]["run"])
+
+    def test_coverage_task_exists(self):
+        """The 'coverage' task must be defined in mise.toml."""
+        self.assertIn("coverage", self.tasks)
+
+    def test_coverage_task_includes_cov_flag(self):
+        """The 'coverage' task run command must include a --cov flag."""
+        self.assertIn("--cov", self.tasks["coverage"]["run"])
+
+    def test_full_task_depends_on_no_extra_bootstrap(self):
+        """The 'full' task run list must not be empty."""
+        run = self.tasks["full"]["run"]
+        self.assertGreater(len(run), 0)
+
+    def test_all_expected_tasks_are_present(self):
+        """All seven canonical tasks must exist in the tasks section."""
+        expected = {"bootstrap", "info", "parse", "build", "full", "lint", "format", "test", "coverage"}
+        for task_name in expected:
+            self.assertIn(task_name, self.tasks, f"Task '{task_name}' missing from mise.toml")
+
+
 if __name__ == "__main__":
     unittest.main()

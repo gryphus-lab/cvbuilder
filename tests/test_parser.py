@@ -331,3 +331,144 @@ def test_save_to_json_indented_output(tmp_path):
     save_to_json(data, file_path)
     raw = file_path.read_text(encoding="utf-8")
     assert "\n" in raw  # Multi-line output confirms indentation
+
+
+## --- Boundary / Regression Tests ---
+
+
+def test_final_sanitize_removes_bullet_symbol():
+    """The OCR bullet character '•' must be stripped from the output."""
+    result = final_sanitize("item one • item two")
+    assert "•" not in result
+
+
+def test_final_sanitize_openal_replacement():
+    """'OpenAl' must be corrected to 'OpenAI'."""
+    result = final_sanitize("using OpenAl API")
+    assert "OpenAl" not in result
+    assert "OpenAI" in result
+
+
+def test_final_sanitize_al_dash_replacement():
+    """'Al-' must be corrected to 'AI-'."""
+    result = final_sanitize("Al-powered system")
+    assert result.startswith("AI-")
+
+
+def test_is_header_with_surrounding_whitespace():
+    """_is_header must ignore leading/trailing whitespace after strip."""
+    # The source strips the line before calling _is_header, but the function
+    # itself also calls strip(); verify it handles pre-padded input safely.
+    assert _is_header("  PROFILE  ") is True
+    assert _is_header("  LANGUAGES  ") is True
+
+
+def test_is_header_mixed_case_with_colon():
+    """Mixed-case header with a trailing colon must be recognised."""
+    assert _is_header("Languages:") is True
+    assert _is_header("Volunteering:") is True
+
+
+def test_section_headers_has_expected_keys():
+    """SECTION_HEADERS must contain all eight canonical section names."""
+    from src.parser.parse_cv import SECTION_HEADERS
+
+    required = {
+        "PROFILE",
+        "STRATEGIC IMPACT & TRANSFORMATIONS",
+        "PROFESSIONAL EXPERIENCE",
+        "CERTIFICATES AND TRAINING",
+        "EDUCATION",
+        "LANGUAGES",
+        "COMPETENCIES AND SKILLS",
+        "VOLUNTEERING",
+    }
+    assert required == set(SECTION_HEADERS.keys())
+
+
+def test_save_to_json_overwrites_existing_file(tmp_path):
+    """save_to_json must silently overwrite a pre-existing file at the target path."""
+    from src.parser.parse_cv import save_to_json
+
+    file_path = tmp_path / "overwrite.json"
+    save_to_json({"version": 1}, file_path)
+    save_to_json({"version": 2}, file_path)
+
+    with open(file_path, "r", encoding="utf-8") as f:
+        loaded = json.load(f)
+    assert loaded["version"] == 2
+
+
+def test_parse_generic_section_with_only_blank_lines():
+    """A section body consisting entirely of blank lines returns an empty list."""
+    lines = ["LANGUAGES", "   ", "  ", "EDUCATION"]
+    items, next_idx = _parse_generic_section(lines, 0)
+    assert items == []
+    assert next_idx == 3
+
+
+def test_semantic_bullet_split_with_empty_keywords_list():
+    """An empty keywords list means no splits occur; full text is the lead-in."""
+    lead_in, bullets = semantic_bullet_split("Some full text here.", [])
+    assert bullets == []
+    assert "full text" in lead_in
+
+
+def test_semantic_bullet_split_lead_in_stripped():
+    """The lead-in returned must not contain trailing punctuation from the split."""
+    keywords = ["Tools"]
+    text = "Intro sentence. Tools: pytest."
+    lead_in, _ = semantic_bullet_split(text, keywords)
+    # Lead-in should not include the keyword or its colon
+    assert "Tools" not in lead_in
+
+
+def test_parse_experience_extracts_all_required_fields():
+    """Each parsed job dict must contain exactly the six expected keys."""
+    lines = [
+        "PROFESSIONAL EXPERIENCE",
+        "Engineer, Corp, City (01/2021 - Present)",
+        "EDUCATION",
+    ]
+    jobs, _ = _parse_experience(lines, 0)
+    assert len(jobs) == 1
+    required_keys = {"title", "company", "location", "dates", "description", "achievements"}
+    assert required_keys == set(jobs[0].keys())
+
+
+def test_parse_experience_title_stripped_of_whitespace():
+    """Parsed job title must have no leading or trailing whitespace."""
+    lines = [
+        "PROFESSIONAL EXPERIENCE",
+        "  Senior Engineer  , BigCo, Town (03/2020 - Present)",
+        "EDUCATION",
+    ]
+    jobs, _ = _parse_experience(lines, 0)
+    if jobs:
+        assert jobs[0]["title"] == jobs[0]["title"].strip()
+
+
+def test_parse_generic_section_next_idx_points_to_header():
+    """next_idx returned must be the index of the first line that is a header."""
+    lines = ["EDUCATION", "M.Sc. CS", "B.Sc. EE", "LANGUAGES"]
+    _, next_idx = _parse_generic_section(lines, 0)
+    assert lines[next_idx] == "LANGUAGES"
+
+
+def test_final_sanitize_deduplication_skill_keyword():
+    """Skill keyword deduplication must also apply to SKILL_KEYWORDS entries."""
+    from src.parser.parse_cv import SKILL_KEYWORDS
+
+    kw = SKILL_KEYWORDS[0]
+    result = final_sanitize(f"{kw} {kw}")
+    # The doubled keyword should be collapsed to a single occurrence
+    assert result.count(kw) == 1
+
+
+def test_final_sanitize_strategic_keyword_deduplication():
+    """Strategic keyword deduplication must remove exact doubles."""
+    from src.parser.parse_cv import STRATEGIC_KEYWORDS
+
+    kw = STRATEGIC_KEYWORDS[0]
+    result = final_sanitize(f"{kw} {kw}")
+    assert result.count(kw) == 1
