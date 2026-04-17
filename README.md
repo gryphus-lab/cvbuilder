@@ -85,6 +85,6 @@ mise run coverage
 
 ## CI
 
-GitHub Actions workflow: `.github/workflows/python-app.yml`
+GitHub Actions workflow: `.github/workflows/ci.yml`
 
 On pushes and pull requests to `main`, CI runs setup, linting, tests, and coverage tasks via `mise`.
