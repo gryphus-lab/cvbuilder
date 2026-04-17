@@ -444,8 +444,8 @@ def test_parse_experience_title_stripped_of_whitespace():
         "EDUCATION",
     ]
     jobs, _ = _parse_experience(lines, 0)
-    if jobs:
-        assert jobs[0]["title"] == jobs[0]["title"].strip()
+    assert jobs, "Expected at least one job to be parsed"
+    assert jobs[0]["title"] == jobs[0]["title"].strip()
 
 
 def test_parse_generic_section_next_idx_points_to_header():

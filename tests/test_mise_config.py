@@ -27,6 +27,22 @@ def load_mise_config() -> dict:
         return tomllib.load(f)
 
 
+class MiseTestBase(unittest.TestCase):
+    """Base class for mise.toml tests with shared helper methods."""
+
+    def assert_darwin_guarded(self, cmd):
+        """
+        Assert that a command is guarded to run only on macOS.
+
+        Checks that the command references `OSTYPE`, contains `darwin`, and includes the `if [[`/`then`/`fi` conditional markers.
+        """
+        self.assertIn("OSTYPE", cmd)
+        self.assertIn("darwin", cmd)
+        self.assertIn("if [[", cmd)
+        self.assertIn("then", cmd)
+        self.assertIn("fi", cmd)
+
+
 class TestMiseTomlParses(unittest.TestCase):
     """Sanity checks that mise.toml is valid TOML and has expected top-level keys."""
 
@@ -46,7 +62,7 @@ class TestMiseTomlParses(unittest.TestCase):
         self.assertIn("tools", config)
 
 
-class TestBootstrapTask(unittest.TestCase):
+class TestBootstrapTask(MiseTestBase):
     """Tests for the bootstrap task's updated macOS-conditional run command."""
 
     def setUp(self):
@@ -57,18 +73,6 @@ class TestBootstrapTask(unittest.TestCase):
         """
         self.config = load_mise_config()
         self.bootstrap = self.config["tasks"]["bootstrap"]
-
-    def assert_darwin_guarded(self, cmd):
-        """
-        Assert that a command is guarded to run only on macOS.
-
-        Checks that the command references `OSTYPE`, contains `darwin`, and includes the `if [[`/`then`/`fi` conditional markers.
-        """
-        self.assertIn("OSTYPE", cmd)
-        self.assertIn("darwin", cmd)
-        self.assertIn("if [[", cmd)
-        self.assertIn("then", cmd)
-        self.assertIn("fi", cmd)
 
     def test_bootstrap_task_exists(self):
         """
@@ -278,7 +282,7 @@ class TestFullTask(unittest.TestCase):
         self.assertGreater(len(desc), 0)
 
 
-class TestBootstrapGuardCompleteness(unittest.TestCase):
+class TestBootstrapGuardCompleteness(MiseTestBase):
     """
     Regression tests that verify the consolidated darwin-guard test covers
     all required conditional markers as a single atomic assertion group.
@@ -287,9 +291,6 @@ class TestBootstrapGuardCompleteness(unittest.TestCase):
     def setUp(self):
         self.config = load_mise_config()
         self.first_cmd = self.config["tasks"]["bootstrap"]["run"][0]
-        # Reuse the helper from TestBootstrapTask
-        self.bootstrap_task_test = TestBootstrapTask()
-        self.bootstrap_task_test.setUp()
 
     def test_darwin_guard_has_opening_bracket_syntax(self):
         """The conditional must use bash double-bracket [[ syntax."""
@@ -305,7 +306,7 @@ class TestBootstrapGuardCompleteness(unittest.TestCase):
 
     def test_darwin_guard_all_markers_present_together(self):
         """All six guard markers must be present in the same command string."""
-        self.bootstrap_task_test.assert_darwin_guarded(self.first_cmd)
+        self.assert_darwin_guarded(self.first_cmd)
 
     def test_darwin_guard_if_precedes_fi(self):
         """'if [[' must appear before 'fi' in the command string."""

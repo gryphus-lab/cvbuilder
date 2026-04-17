@@ -235,7 +235,7 @@ def test_build_passes_base_url_to_weasyprint(
     builder.build(sample_cv_data, output_file)
 
     _, kwargs = mock_html_class.call_args
-    assert kwargs["base_url"] == str(output_file.parent)
+    assert kwargs["base_url"] == str(Path.cwd())
 
 
 @patch("src.builder.cv_builder.HTML")
