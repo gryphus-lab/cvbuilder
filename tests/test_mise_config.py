@@ -409,6 +409,8 @@ class TestAdditionalTasks(unittest.TestCase):
 
     def test_info_task_has_description(self):
         """The 'info' task must have a non-empty description."""
+        self.assertIn("info", self.tasks)
+        self.assertIn("description", self.tasks["info"])
         desc = self.tasks["info"]["description"]
         self.assertIsInstance(desc, str)
         self.assertGreater(len(desc), 0)
@@ -419,6 +421,7 @@ class TestAdditionalTasks(unittest.TestCase):
 
     def test_lint_task_depends_on_bootstrap(self):
         """The 'lint' task must declare 'bootstrap' as a dependency."""
+        self.assertIn("lint", self.tasks)
         self.assertIn("bootstrap", self.tasks["lint"].get("depends", []))
 
     def test_format_task_exists(self):
@@ -431,6 +434,8 @@ class TestAdditionalTasks(unittest.TestCase):
 
     def test_test_task_run_invokes_pytest(self):
         """The 'test' task run command must invoke pytest."""
+        self.assertIn("test", self.tasks)
+        self.assertIn("run", self.tasks["test"])
         self.assertIn("pytest", self.tasks["test"]["run"])
 
     def test_coverage_task_exists(self):
@@ -439,10 +444,14 @@ class TestAdditionalTasks(unittest.TestCase):
 
     def test_coverage_task_includes_cov_flag(self):
         """The 'coverage' task run command must include a --cov flag."""
+        self.assertIn("coverage", self.tasks)
+        self.assertIn("run", self.tasks["coverage"])
         self.assertIn("--cov", self.tasks["coverage"]["run"])
 
     def test_full_task_run_is_not_empty(self):
         """The 'full' task run list must not be empty."""
+        self.assertIn("full", self.tasks)
+        self.assertIn("run", self.tasks["full"])
         run = self.tasks["full"]["run"]
         self.assertGreater(len(run), 0)
 
