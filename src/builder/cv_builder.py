@@ -12,7 +12,11 @@ logger = logging.getLogger(__name__)
 
 class CVBuilder:
     def __init__(self):
-        """Builder initialized with embedded Jinja2 template."""
+        """
+        Create a CVBuilder instance.
+        
+        This constructor performs no initialization and stores no instance state.
+        """
         pass
 
     def build(
@@ -21,6 +25,19 @@ class CVBuilder:
         output_pdf: str | Path,
         photo_path: str | Path | None = None,
     ) -> None:
+        """
+        Builds a PDF CV from provided CV data and saves it to the given output path.
+        
+        Parameters:
+            cv_data (Dict[str, Any]): Data used to render the CV template (expected keys include personal_info, profile, strategic_impact, professional_experience, certificates_and_training, education, languages, competencies_and_skills, volunteering).
+            output_pdf (str | Path): Target filesystem path for the generated PDF; parent directories will be created if they do not exist.
+            photo_path (str | Path | None): Optional path to a photo file to embed in the CV. If provided, the path is resolved to a file URI and embedded when the file exists; missing or non-file paths emit a warning and resolution failures emit an error.
+        
+        Side effects:
+            - Creates parent directories for output_pdf if necessary.
+            - Writes the generated PDF to output_pdf.
+            - Logs warnings/errors when the photo_path cannot be used.
+        """
         output_pdf = Path(output_pdf)
         output_pdf.parent.mkdir(parents=True, exist_ok=True)
 
@@ -44,6 +61,25 @@ class CVBuilder:
         print(f'✅ CV PDF successfully generated at: "{output_pdf.resolve()}"')
 
     def _render_html(self, cv: Dict[str, Any], photo: str = "") -> str:
+        """
+        Render a CV data structure into a complete HTML document string suitable for PDF generation.
+        
+        Parameters:
+            cv (Dict[str, Any]): Mapping with CV content. Expected keys include:
+                - personal_info (dict): contains `name`, `title`, `address`, `phone`, `email`.
+                - profile (str)
+                - strategic_impact (list[str])
+                - professional_experience (list[dict]): each job may include `title`, `company`, `location`, `dates`, `description`, `achievements`.
+                - certificates_and_training (list[str])
+                - education (list[dict]): each item should include `institution` and `degree`.
+                - languages (list[str])
+                - competencies_and_skills (dict[str, list[str]])
+                - volunteering (list[str])
+            photo (str): Optional image URI (e.g., a `file://` URI) to include as a header photo; pass an empty string to omit the photo.
+        
+        Returns:
+            str: The rendered HTML document as a string.
+        """
         template_str = """
 <!DOCTYPE html>
 <html>
