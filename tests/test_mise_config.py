@@ -110,12 +110,12 @@ class TestBootstrapTask(MiseTestBase):
         Assert that the first command in the bootstrap task's `run` list creates a Homebrew symlink and references the Python sysconfig path.
 
         The test checks that the command string contains:
-        - the symlink invocation `"ln -s"`,
+        - the symlink invocation `"ln -sf"`,
         - the Homebrew library prefix `"$(brew --prefix)/lib/*"`,
         - and a reference to `sysconfig.get_path`.
         """
         first_cmd = self.bootstrap["run"][0]
-        self.assertIn("ln -s", first_cmd)
+        self.assertIn("ln -sf", first_cmd)
         self.assertIn("$(brew --prefix)/lib/*", first_cmd)
         self.assertIn("sysconfig.get_path", first_cmd)
 
