@@ -19,11 +19,25 @@ WORKFLOW_FILE = REPO_ROOT / ".github" / "workflows" / "ci.yml"
 
 
 def _raw_text() -> str:
+    """
+    Read and return the repository workflow file contents.
+    
+    Returns:
+        str: The contents of the workflow file.
+    """
     return WORKFLOW_FILE.read_text(encoding="utf-8")
 
 
 def _load_yaml() -> dict:
-    """Try to parse with PyYAML; raises ImportError if unavailable."""
+    """
+    Parse the workflow YAML file using PyYAML.
+    
+    Returns:
+        config (dict): The parsed YAML content as a Python dictionary.
+    
+    Raises:
+        ImportError: If the `yaml` module (PyYAML) is not installed.
+    """
     import yaml  # type: ignore
 
     with open(WORKFLOW_FILE, encoding="utf-8") as f:
@@ -141,6 +155,11 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
     """Deep structural assertions using a parsed YAML document."""
 
     def setUp(self):
+        """
+        Load the repository workflow YAML into self.cfg for use by test methods.
+        
+        The parsed YAML mapping of the workflow file is stored on self.cfg.
+        """
         self.cfg = _load_yaml()
 
     def test_workflow_name(self):
@@ -150,6 +169,11 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
         self.assertIn("main", self.cfg["on"]["push"]["branches"])
 
     def test_on_pull_request_branches(self):
+        """
+        Ensure the workflow's `pull_request` trigger includes the `main` branch.
+        
+        Asserts that `"main"` appears in the parsed YAML at `on.pull_request.branches`.
+        """
         self.assertIn("main", self.cfg["on"]["pull_request"]["branches"])
 
     def test_top_level_permissions_contents_read(self):
@@ -166,6 +190,9 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
         self.assertEqual(self.cfg["jobs"]["build"]["runs-on"], "ubuntu-latest")
 
     def test_steps_is_list(self):
+        """
+        Asserts that the `build` job's `steps` entry in the parsed workflow YAML is a list.
+        """
         steps = self.cfg["jobs"]["build"]["steps"]
         self.assertIsInstance(steps, list)
 
@@ -197,10 +224,19 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
             )
 
     def test_checkout_step_is_first(self):
+        """
+        Assert that the first step in the `build` job uses the checkout action.
+        
+        Verifies the first entry in self.cfg["jobs"]["build"]["steps"] has a `uses`
+        value containing "actions/checkout".
+        """
         first = self.cfg["jobs"]["build"]["steps"][0]
         self.assertIn("actions/checkout", first.get("uses", ""))
 
     def test_checkout_fetch_depth(self):
+        """
+        Assert that the first step (actions/checkout) in the parsed workflow has its `with.fetch-depth` set to 0.
+        """
         first = self.cfg["jobs"]["build"]["steps"][0]
         self.assertEqual(first["with"]["fetch-depth"], 0)
 
@@ -217,6 +253,18 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
         self.assertTrue(step["with"]["cache"])
 
     def _get_step_by_name(self, name: str) -> dict:
+        """
+        Retrieve a job step by its displayed name from the parsed workflow configuration.
+        
+        Parameters:
+            name (str): The `name` value of the step to locate within `self.cfg["jobs"]["build"]["steps"]`.
+        
+        Returns:
+            step (dict): The mapping representing the first step whose `"name"` equals `name`.
+        
+        Raises:
+            KeyError: If no step with the given `name` is present.
+        """
         steps = self.cfg["jobs"]["build"]["steps"]
         for step in steps:
             if step.get("name") == name:
