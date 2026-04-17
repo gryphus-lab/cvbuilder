@@ -121,7 +121,17 @@ def semantic_bullet_split(text: str, keywords: list) -> tuple[str, list[str]]:
 
 
 def _parse_personal_info(lines: List[str]) -> Dict[str, str]:
-    """Parse personal info directly from the raw OCR output (no hardcoded strings)."""
+    """
+    Extract personal contact and identity fields from the top of OCR'd lines.
+    
+    Scans up to the first 20 non-empty OCR lines and extracts common personal info fields using regex heuristics. Detected keys may include: `email`, `phone`, `date_of_birth`, `nationality`, `permit`, and `address`. The `address` is the first line that looks address-like (contains a digit) and is not a "Date of Birth" line.
+    
+    Parameters:
+        lines (List[str]): OCR'd lines from the document.
+    
+    Returns:
+        info (Dict[str, str]): A dictionary of extracted fields; only keys for which a match was found are present.
+    """
     info = {}
     for line in lines[:20]:  # only top of document
         # Email
@@ -155,6 +165,19 @@ def _parse_personal_info(lines: List[str]) -> Dict[str, str]:
 
 
 def _parse_experience(lines: list[str], start_idx: int) -> tuple[list[dict], int]:
+    """
+    Parse consecutive professional experience entries from OCR lines starting after start_idx.
+    
+    @param lines: List of OCR-extracted, non-empty lines.
+    @param start_idx: Index of the header line that begins the experience section; parsing starts from the next line.
+    @returns: A tuple (jobs, next_index) where `jobs` is a list of job dictionaries and `next_index` is the line index where parsing stopped (the first header or end). Each job dictionary contains:
+        - `title` (str): Job title.
+        - `company` (str): Employer or organisation name.
+        - `location` (str): Sanitized location string or empty string if not present.
+        - `dates` (str): Date or date-range string as found in parentheses.
+        - `description` (str): Leading descriptive text for the role (may be empty).
+        - `achievements` (list[str]): Extracted achievement/keyword-led bullet segments (may be empty).
+    """
     jobs = []
     i = start_idx + 1
 
@@ -211,6 +234,24 @@ def _parse_generic_section(lines: List[str], start_idx: int) -> Tuple[List[str],
 
 
 def parse_cv_to_json(pdf_path: str):
+    """
+    Parse a CV PDF and extract structured resume data as a JSON-serializable dictionary.
+    
+    Parameters:
+        pdf_path (str): Path to the PDF file containing the CV.
+    
+    Returns:
+        dict: A mapping with the following keys:
+            - personal_info (dict): Extracted contact and identity fields (e.g., email, phone, date_of_birth, nationality, permit, address) where available.
+            - profile (str): Profile/summary text.
+            - strategic_impact (list[str]): Extracted strategic-impact bullet items.
+            - professional_experience (list[dict]): List of job entries; each entry may include `title`, `company`, `location`, `dates`, `description`, and `achievements`.
+            - certificates_and_training (list[str]): Items from certificates and training section.
+            - education (list[dict]): Education entries, typically containing `institution` and optionally `degree`.
+            - languages (list[str]): Language lines grouped into items (filtered and sanitized).
+            - competencies_and_skills (dict): Mapping of skill categories to lists of sanitized skill values.
+            - volunteering (list[str]): Volunteering entries.
+    """
     images = convert_from_path(pdf_path, dpi=300)
     raw_text = "\n".join([pt.image_to_string(img, lang="deu+eng") for img in images])
 
@@ -301,6 +342,13 @@ def parse_cv_to_json(pdf_path: str):
 
 
 def save_to_json(data: Dict[str, Any], output_path: Path) -> None:
+    """
+    Write `data` as UTF-8 encoded, pretty-printed JSON to `output_path`, creating parent directories if necessary.
+    
+    Parameters:
+        data (Dict[str, Any]): The JSON-serializable object to write.
+        output_path (Path): Destination file path where the JSON will be written; parent directories will be created if missing.
+    """
     output_path.parent.mkdir(exist_ok=True, parents=True)
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
