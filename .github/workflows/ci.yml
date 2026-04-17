@@ -5,9 +5,9 @@ name: CI Workflow for cvbuilder with mise and SonarQube
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 permissions:
   contents: read

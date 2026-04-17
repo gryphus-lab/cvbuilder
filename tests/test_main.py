@@ -16,8 +16,16 @@ import main as cli_main
 
 
 class TestMainCLIParse(unittest.TestCase):
-    def test_parse_exits_when_pdf_is_missing(self, tmp_path):
-        missing_pdf = tmp_path / "missing_input.pdf"
+    def test_parse_exits_when_pdf_is_missing(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            missing_pdf = Path(tmp_dir) / "missing_input.pdf"
+            with patch.object(sys, "argv", ["main.py", "parse", str(missing_pdf)]):
+                with patch("builtins.print") as mock_print:
+                    with self.assertRaises(SystemExit) as exc:
+                        cli_main.main()
+
+            self.assertEqual(exc.exception.code, 1)
+            mock_print.assert_any_call(f"❌ PDF not found: {missing_pdf.resolve()}")
 
         with patch.object(sys, "argv", ["main.py", "parse", str(missing_pdf)]):
             with patch("builtins.print") as mock_print:
