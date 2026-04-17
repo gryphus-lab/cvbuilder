@@ -21,7 +21,7 @@ python.uv_venv_auto = "create|source"
 [tasks.bootstrap]
 description = "Install dependencies"
 run = [
-  "[[ $OSTYPE == 'darwin'* ]] && ln -s $(brew --prefix)/lib/* $HOME/.local/share/mise/installs/python/3.14.4/lib/ >/dev/null 2>&1 || true",
+  "[[ $OSTYPE == 'darwin'* ]] && ln -s $(brew --prefix)/lib/* $(python -c 'import sysconfig; print(sysconfig.get_path(\"stdlib\"))') >/dev/null 2>&1",
   "uv pip install -r requirements.txt",
 ]
 
