@@ -36,11 +36,11 @@ class MiseTestBase(unittest.TestCase):
 
         Checks that the command references `OSTYPE`, contains `darwin`, and includes the `if [[`/`then`/`fi` conditional markers.
         """
-        self.assertIn("OSTYPE", cmd)
-        self.assertIn("darwin", cmd)
-        self.assertIn("if [[", cmd)
-        self.assertIn("then", cmd)
-        self.assertIn("fi", cmd)
+        self.assertRegex(cmd, r"\bOSTYPE\b")
+        self.assertRegex(cmd, r"darwin")
+        self.assertRegex(cmd, r"\bif\s+\[\[")
+        self.assertRegex(cmd, r"\bthen\b")
+        self.assertRegex(cmd, r"\bfi\b")
 
 
 class TestMiseTomlParses(unittest.TestCase):
