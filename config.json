@@ -1,0 +1,44 @@
+{
+  "section_headers": {
+    "PROFILE": "profile",
+    "STRATEGIC IMPACT & TRANSFORMATIONS": "strategic_impact",
+    "PROFESSIONAL EXPERIENCE": "professional_experience",
+    "CERTIFICATES AND TRAINING": "certificates_and_training",
+    "EDUCATION": "education",
+    "LANGUAGES": "languages",
+    "COMPETENCIES AND SKILLS": "competencies_and_skills",
+    "VOLUNTEERING": "volunteering"
+  },
+  "achievement_keywords": [
+    "Migration Impact",
+    "AI Efficiency",
+    "Team Leadership",
+    "Portfolio TCO",
+    "Security Transformation",
+    "Modernization",
+    "DACH Market Advisory",
+    "Legacy Modernization",
+    "Engineering Standards",
+    "High-Availability Delivery",
+    "Supply Chain Optimization",
+    "High-Volume Architecture",
+    "Rapid Progression",
+    "Middleware Leadership"
+  ],
+  "skill_keywords": [
+    "Artificial Intelligence",
+    "Architecture",
+    "Frameworks",
+    "Tools",
+    "Cloud & Platforms",
+    "DevSecOps",
+    "Data & BPM",
+    "Development",
+    "Regulatory/Governance"
+  ],
+  "strategic_keywords": [
+    "AI-Augmented SDLC Strategy",
+    "Large-Scale M&A Integration",
+    "Enterprise Portfolio & TCO Optimization"
+  ]
+}

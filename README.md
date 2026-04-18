@@ -10,6 +10,7 @@ Parse a CV PDF with [Tesseract OCR](https://tesseract-ocr.github.io/) into struc
 [![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=gryphus-lab_cvbuilder&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=gryphus-lab_cvbuilder)
 [![mise](https://img.shields.io/badge/managed%20with-mise-6f42c1)](https://mise.jdx.dev/)
 [![Python](https://img.shields.io/badge/Python-3.14-2496ED?logo=python&logoColor=white)](https://www.python.org/)
+
 ## Requirements
 
 - [mise](https://mise.jdx.dev/)
