@@ -615,8 +615,7 @@ def _handle_languages_section(
             # Delegate to appropriate parser based on first non-empty line
             if line.startswith("•"):
                 return _parse_bulleted_languages(lines, start_idx)
-            else:
-                return _parse_inline_languages(lines, start_idx)
+            return _parse_inline_languages(lines, start_idx)
         i += 1
 
     # Empty section fallback
