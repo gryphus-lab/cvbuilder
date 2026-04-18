@@ -465,6 +465,7 @@ def _parse_comma_separated_education(
         sanitized_parts[1], degree_keywords
     )
 
+    # Check both parts first
     if part0_has_degree and not part1_has_degree:
         return {
             "degree": sanitized_parts[0],
@@ -475,19 +476,33 @@ def _parse_comma_separated_education(
             "institution": sanitized_parts[0],
             "degree": sanitized_parts[1] if len(sanitized_parts) > 1 else "",
         }
-    elif _contains_degree_keyword(item, degree_keywords):
-        return {
-            "degree": sanitized_parts[0],
-            "institution": sanitized_parts[1] if len(sanitized_parts) > 1 else "",
-        }
-    else:
-        return {
-            "institution": sanitized_parts[0],
-            "degree": sanitized_parts[1] if len(sanitized_parts) > 1 else "",
-        }
+
+    # Neither part individually has degree keyword, check the whole item
+    if _contains_degree_keyword(item, degree_keywords):
+        # Re-check which sanitized part actually contains the keyword
+        if _contains_degree_keyword(sanitized_parts[0], degree_keywords):
+            return {
+                "degree": sanitized_parts[0],
+                "institution": sanitized_parts[1] if len(sanitized_parts) > 1 else "",
+            }
+        elif len(sanitized_parts) > 1 and _contains_degree_keyword(
+            sanitized_parts[1], degree_keywords
+        ):
+            return {
+                "institution": sanitized_parts[0],
+                "degree": sanitized_parts[1],
+            }
+
+    # No degree keyword found, use default mapping
+    return {
+        "institution": sanitized_parts[0],
+        "degree": sanitized_parts[1] if len(sanitized_parts) > 1 else "",
+    }
 
 
-def _parse_dash_separated_education(item: str) -> dict[str, str]:
+def _parse_dash_separated_education(
+    item: str, degree_keywords: list[str]
+) -> dict[str, str]:
     """Parse education entry with dash separator, detecting which side is degree vs institution."""
     parts = item.split(" - ", 1)
     if len(parts) < 2:
@@ -500,32 +515,12 @@ def _parse_dash_separated_education(item: str) -> dict[str, str]:
     part0_sanitized = final_sanitize(parts[0])
     part1_sanitized = final_sanitize(parts[1])
 
-    # Check for common degree patterns in each part
-    degree_patterns = [
-        r"\bPhD\b",
-        r"\bBSc\b",
-        r"\bMSc\b",
-        r"\bMBA\b",
-        r"\bBachelor\b",
-        r"\bMaster\b",
-        r"\bDoctor\b",
-        r"\bB\.Tech\b",
-        r"\bM\.Tech\b",
-        r"\bB\.Sc\b",
-        r"\bM\.Sc\b",
-        r"\bDoctorate\b",
-    ]
+    # Check for degree keywords in each part using the shared helper
+    part0_has_degree = _contains_degree_keyword(part0_sanitized, degree_keywords)
+    part1_has_degree = _contains_degree_keyword(part1_sanitized, degree_keywords)
 
+    # Check for institution keywords
     institution_patterns = [r"\bUniversity\b", r"\bCollege\b", r"\bInstitute\b"]
-
-    part0_has_degree = any(
-        re.search(pattern, part0_sanitized, re.IGNORECASE)
-        for pattern in degree_patterns
-    )
-    part1_has_degree = any(
-        re.search(pattern, part1_sanitized, re.IGNORECASE)
-        for pattern in degree_patterns
-    )
 
     part0_has_institution = any(
         re.search(pattern, part0_sanitized, re.IGNORECASE)
@@ -591,14 +586,19 @@ def _parse_education_entry(item: str, degree_keywords: list[str]) -> dict[str, s
 
     # Handle dash-separated format
     if " - " in item:
-        return _parse_dash_separated_education(item)
+        return _parse_dash_separated_education(item, degree_keywords)
 
     # Handle degree-only entries
     if _contains_degree_keyword(item, degree_keywords):
         return _parse_degree_only_education(sanitized)
 
-    # Handle institution-only entries
-    if "Institute" in item or "University" in item or "College" in item:
+    # Handle institution-only entries (case-insensitive)
+    item_lower = item.lower()
+    if (
+        "institute" in item_lower
+        or "university" in item_lower
+        or "college" in item_lower
+    ):
         return _parse_institution_only_education(sanitized)
 
     # Fallback: treat whole line as institution
