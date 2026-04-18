@@ -230,7 +230,7 @@ def _looks_like_address(line: str) -> bool:
         " road",
         " blvd",
         " lane",
-        " strasse",
+        "strasse",
     )
     if any(keyword in normalized for keyword in address_keywords):
         return True
