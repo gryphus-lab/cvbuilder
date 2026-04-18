@@ -516,14 +516,14 @@ def _handle_competencies_and_skills_section(lines: list[str], start_idx: int) ->
     return skills_dict, next_idx
 
 
-def _handle_generic_fallback_section(lines: list[str], start_idx: int, canonical_section: str) -> tuple[list[str], int]:
+def _handle_generic_fallback_section(lines: list[str], start_idx: int, _canonical_section: str) -> tuple[list[str], int]:
     """
     Handle generic sections using fallback logic.
 
     Parameters:
         lines (list[str]): OCR'd lines from the document.
         start_idx (int): Index of the section header.
-        canonical_section (str): The canonical section name.
+        _canonical_section (str): The canonical section name (intentionally unused).
 
     Returns:
         tuple[list[str], int]: List of sanitized items and next index.
