@@ -17,6 +17,9 @@ STRATEGIC_KEYWORDS = CONFIG["strategic_keywords"]
 
 LINKEDIN_KEYWORD = "linkedin.com"
 
+PHONE_PATTERN = re.compile(r"(?:\+|00)[\d\s\-().]{7,18}")
+E164_PATTERN = re.compile(r"\+\d{7,15}$")
+
 
 def _is_header(line: str) -> bool:
     """
@@ -34,9 +37,9 @@ def _is_header(line: str) -> bool:
 def final_sanitize(text: str) -> str:
     """
     Normalize and correct common OCR artifacts and whitespace/punctuation issues in extracted text.
-    
+
     Performs observable normalizations including: targeted corrections of OCR variants like `Al`/`OpenAl` to `AI`/`OpenAI`, removal of stray symbols (e.g., bullets, ©, ¢), context-constrained replacement of `ii` with `ü` in OCR-specific cases, collapsing duplicated configured keywords, collapsing repeated whitespace, normalizing colon spacing to `": "`, and converting exact `Nativ` to `Native`. If `text` is falsy, returns an empty string.
-    
+
     Parameters:
         text (str): Raw OCR-extracted text.
 
@@ -71,7 +74,9 @@ def final_sanitize(text: str) -> str:
         text = re.sub(double_pattern, r"\1", text, flags=re.IGNORECASE)
 
     text = re.sub(r"\s+", " ", text)
-    text = re.sub(r"\s*:\s*", ": ", text)
+    text = text.replace(" : ", ": ")
+    text = text.replace(" :", ": ")
+    text = text.replace(":  ", ": ")
     text = re.sub(r"\bNativ\b", "Native", text)
 
     return text.strip()
@@ -117,8 +122,12 @@ def _extract_email(line: str) -> Optional[str]:
     Returns:
         The matched email address as a string, or `None` if no email is present.
     """
-    email_match = re.search(r"[\w\.-]+@[\w\.-]+\.\w+", line)
-    return email_match.group(0) if email_match else None
+    for token in line.split():
+        if token.count("@") == 1 and "." in token:
+            candidate = token.strip(".,;")
+            if "@" in candidate and "." in candidate:
+                return candidate
+    return None
 
 
 def _extract_phone(line: str) -> Optional[str]:
@@ -135,7 +144,7 @@ def _extract_phone(line: str) -> Optional[str]:
     """
     # Match international E.164-style phone numbers with explicit prefix (+ or 00)
     # Only match strings that start with + or 00, followed by digits with optional separators
-    phone_match = re.search(r"(?:\+|00)[\d\s\-().]{7,18}", line)
+    phone_match = PHONE_PATTERN.search(line)
     if phone_match:
         # Normalize by removing spaces, dashes, parentheses, and dots
         phone = phone_match.group(0)
@@ -144,7 +153,7 @@ def _extract_phone(line: str) -> Optional[str]:
         if normalized.startswith("00"):
             normalized = "+" + normalized[2:]
         # Validate E.164 style: must start with + followed by 7-15 digits
-        if re.match(r"\+\d{7,15}$", normalized):
+        if E164_PATTERN.match(normalized):
             return normalized
     return None
 
@@ -152,9 +161,9 @@ def _extract_phone(line: str) -> Optional[str]:
 def _extract_dob(line: str) -> Optional[str]:
     """
     Extract a date-of-birth token from a single text line.
-    
+
     Searches for a "Date of Birth:" label followed by a date in day.month.year or day.month.year-short formats (e.g. "01.01.1990" or "1.1.90").
-    
+
     Returns:
         The matched date string (e.g. "01.01.1990" or "1.1.90"), or `None` if no such pattern is present.
     """
@@ -183,19 +192,61 @@ def _extract_permit(line: str) -> Optional[str]:
     Returns:
         permit (str): The captured permit text with surrounding whitespace removed, or None if the line does not contain a 'Permit:' label.
     """
-    permit_match = re.search(r"Permit:\s*(.+)$", line)
-    return permit_match.group(1).strip() if permit_match else None
+    if "Permit:" not in line:
+        return None
+
+    permit = line.split("Permit:", 1)[1].strip()
+    return permit or None
+
+
+def _is_standalone_date(text: str) -> bool:
+    stripped = text.strip()
+    parts = stripped.split(".")
+    return (
+        len(parts) == 3
+        and all(part.isdigit() for part in parts)
+        and len(parts[0]) == 2
+        and len(parts[1]) == 2
+        and len(parts[2]) == 4
+    )
+
+
+def _looks_like_address(line: str) -> bool:
+    normalized = line.lower()
+    tokens = normalized.split()
+    for idx, token in enumerate(tokens[:-1]):
+        next_token = tokens[idx + 1]
+        if (
+            any(c.isdigit() for c in token) and any(c.isalpha() for c in next_token)
+        ) or (any(c.isalpha() for c in token) and any(c.isdigit() for c in next_token)):
+            return True
+
+    address_keywords = (
+        " street",
+        " ave",
+        " avenue",
+        " rd",
+        " road",
+        " blvd",
+        " lane",
+        " strasse",
+    )
+    if any(keyword in normalized for keyword in address_keywords):
+        return True
+    if normalized.startswith("st ") or normalized.endswith(" st"):
+        return True
+    return False
 
 
 def _extract_address(line: str) -> Optional[str]:
     """
     Heuristically detects whether a single line contains an address-like string and returns it if so.
-    
+
     Performs lightweight checks: requires at least one digit, excludes lines that look like a "Date of Birth", a standalone dd.mm.yyyy date, or a simple phone-like pattern, and requires an address-like pattern (e.g., number + word or common street keywords). If the line passes these heuristics the trimmed line is returned.
-    
+
     Parameters:
         line (str): A single OCR/text line to inspect.
-    
+
     Returns:
         Optional[str]: The trimmed input line when it appears to be an address, `None` otherwise.
     """
@@ -203,13 +254,8 @@ def _extract_address(line: str) -> Optional[str]:
         any(c.isdigit() for c in line)
         and "Date of Birth" not in line
         and not re.search(r"\+\d{2}\s?\d{2}", line)  # Skip phone numbers
-        and not re.search(
-            r"^\d{2}\.\d{2}\.\d{4}$", line.strip()
-        )  # Skip standalone dates
-        and re.search(
-            r"\d+\s+\w+|St\b|Street\b|Ave\b|Avenue\b|Rd\b|Road\b|Blvd\b|Lane\b|Strasse\b|strasse\b",
-            line,
-        )  # Require address pattern
+        and not _is_standalone_date(line)
+        and _looks_like_address(line)
     ):
         return line.strip()
     return None
@@ -218,9 +264,9 @@ def _extract_address(line: str) -> Optional[str]:
 def _extract_name_and_title(lines: list[str], common_headers: set) -> tuple[str, str]:
     """
     Selects the candidate's name and job title from the top OCR lines.
-    
+
     Scans up to the first five lines. The first line that is not a section header and does not resemble contact/identity data becomes the name; the next such line (if any) becomes the title. Scanning stops early if a section header is encountered.
-    
+
     Parameters:
         lines (list[str]): OCR-extracted lines from the top of the document.
         common_headers (set): Uppercased section header tokens used to recognize and skip heading lines.
@@ -323,9 +369,6 @@ def _parse_experience(lines: list[str], start_idx: int) -> tuple[list[dict], int
             - `description` (str): Leading descriptive text for the role (may be empty).
             - `achievements` (list[str]): Extracted achievement/keyword-led bullet segments (may be empty).
     """
-    # Job header pattern: matches lines like "Title, Company, Location (Dates)"
-    job_header_pattern = r"(.+?),\s*(.+?)(?:,\s*(.+?))?\s*\((.+?)\)"
-
     jobs = []
     i = start_idx + 1
 
@@ -334,39 +377,47 @@ def _parse_experience(lines: list[str], start_idx: int) -> tuple[list[dict], int
         if _is_header(line):
             break
 
-        job_match = re.search(job_header_pattern, line)
+        if "(" in line and line.endswith(")") and "," in line:
+            header_part, dates_part = line.rsplit("(", 1)
+            dates = dates_part[:-1].strip()
+            header_parts = [part.strip() for part in header_part.split(",")]
 
-        if job_match:
-            job = {
-                "title": job_match.group(1).strip(),
-                "company": job_match.group(2).strip(),
-                "location": (
-                    final_sanitize(job_match.group(3).strip())
-                    if job_match.group(3)
-                    else ""
-                ),
-                "dates": job_match.group(4).strip(),
-                "description": "",
-                "achievements": [],
-            }
-            i += 1
-            content_parts = []
-            while (
-                i < len(lines)
-                and not _is_header(lines[i])
-                and not re.search(job_header_pattern, lines[i])
-            ):
-                content_parts.append(lines[i].strip())
+            if len(header_parts) >= 2:
+                job = {
+                    "title": header_parts[0],
+                    "company": header_parts[1],
+                    "location": (
+                        final_sanitize(header_parts[2])
+                        if len(header_parts) >= 3
+                        else ""
+                    ),
+                    "dates": dates,
+                    "description": "",
+                    "achievements": [],
+                }
                 i += 1
+                content_parts = []
+                while (
+                    i < len(lines)
+                    and not _is_header(lines[i])
+                    and not (
+                        "(" in lines[i]
+                        and lines[i].strip().endswith(")")
+                        and "," in lines[i]
+                    )
+                ):
+                    content_parts.append(lines[i].strip())
+                    i += 1
 
-            desc, achs = semantic_bullet_split(
-                " ".join(content_parts), ACHIEVEMENT_KEYWORDS
-            )
-            job["description"] = desc
-            job["achievements"] = achs
-            jobs.append(job)
-        else:
-            i += 1
+                desc, achs = semantic_bullet_split(
+                    " ".join(content_parts), ACHIEVEMENT_KEYWORDS
+                )
+                job["description"] = desc
+                job["achievements"] = achs
+                jobs.append(job)
+                continue
+
+        i += 1
     return jobs, i
 
 
@@ -394,15 +445,15 @@ def _parse_generic_section(lines: list[str], start_idx: int) -> tuple[list[str],
 def _parse_education_entry(item: str, degree_keywords: list[str]) -> dict[str, str]:
     """
     Parse a single education line into institution and degree components.
-    
+
     This function heuristically determines which part of the raw education string represents the degree
     and which represents the institution by sanitizing the input and using common separators and
     degree-identifying keywords.
-    
+
     Parameters:
         item (str): Raw education line (OCR output).
         degree_keywords (list[str]): Keywords that indicate a degree (e.g., "Bachelor", "Master", "PhD").
-    
+
     Returns:
         dict[str, str]: Mapping with keys:
             - 'institution': The detected institution name (or empty string if not found).
@@ -470,7 +521,7 @@ def _parse_education_entry(item: str, degree_keywords: list[str]) -> dict[str, s
 def _handle_profile_section(lines: list[str], start_idx: int) -> tuple[str, int]:
     """
     Extracts and returns the sanitized text content of the Profile section.
-    
+
     Parameters:
         lines (list[str]): OCR-extracted lines of the document.
         start_idx (int): Index of the Profile section header in `lines`; parsing begins at the line after this index.
@@ -487,7 +538,7 @@ def _handle_strategic_impact_section(
 ) -> tuple[list[str], int]:
     """
     Extract strategic-impact bullet entries from a section and return them with the index after the section.
-    
+
     Returns:
         tuple[list[str], int]: A list of sanitized strategic impact bullets, and the index of the line immediately following the parsed section.
     """
@@ -627,13 +678,13 @@ def _handle_competencies_and_skills_section(
 ) -> tuple[dict, int]:
     """
     Map competencies and skills in the section to sanitized category→skill lists.
-    
+
     Collects the section lines starting at start_idx, splits the text into keyword-led blocks, and for each block containing a colon interprets the left side as the category and the right side as comma- or semicolon-separated skill values. Category names and individual skill values are sanitized; blocks without a colon are ignored.
-    
+
     Parameters:
         lines (list[str]): All OCR lines from the document.
         start_idx (int): Index of the section header line; parsing begins at the following line.
-    
+
     Returns:
         tuple[dict, int]: A tuple where the first element maps sanitized category names to lists of sanitized skill strings, and the second element is the index of the first line after the section.
     """
@@ -654,7 +705,7 @@ def _handle_generic_fallback_section(
 ) -> tuple[list[str], int]:
     """
     Collects the raw lines of an unhandled section and returns them sanitized, plus the index of the first line after the section.
-    
+
     Returns:
         tuple[list[str], int]: Sanitized section lines and the index of the first line after the section.
     """
