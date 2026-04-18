@@ -94,6 +94,52 @@ def semantic_bullet_split(text: str, keywords: list) -> tuple[str, list[str]]:
     return lead_in, bullets
 
 
+def _extract_email(line: str) -> str:
+    """Extract email address from a line."""
+    email_match = re.search(r"[\w\.-]+@[\w\.-]+\.\w+", line)
+    return email_match.group(0) if email_match else None
+
+
+def _extract_phone(line: str) -> str:
+    """Extract phone number from a line."""
+    phone_match = re.search(r"\+41\s?\d{2}\s?\d{3}\s?\d{2}\s?\d{2}", line)
+    return phone_match.group(0) if phone_match else None
+
+
+def _extract_dob(line: str) -> str:
+    """Extract date of birth from a line."""
+    dob_match = re.search(r"Date of Birth:\s*([\d.]+)", line)
+    return dob_match.group(1) if dob_match else None
+
+
+def _extract_nationality(line: str) -> str:
+    """Extract nationality from a line."""
+    nat_match = re.search(r"Nationality:\s*(\w+)", line)
+    return nat_match.group(1) if nat_match else None
+
+
+def _extract_permit(line: str) -> str:
+    """Extract permit information from a line."""
+    permit_match = re.search(r"Permit:\s*(.+)$", line)
+    return permit_match.group(1).strip() if permit_match else None
+
+
+def _extract_address(line: str) -> str:
+    """Extract address from a line if it looks like an address."""
+    if (
+        any(c.isdigit() for c in line)
+        and "Date of Birth" not in line
+        and not re.search(r"\+\d{2}\s?\d{2}", line)  # Skip phone numbers
+        and not re.search(r"^\d{2}\.\d{2}\.\d{4}$", line.strip())  # Skip standalone dates
+        and re.search(
+            r"\d+\s+\w+|St\b|Street\b|Ave\b|Avenue\b|Rd\b|Road\b|Blvd\b|Lane\b|Strasse\b|strasse\b",
+            line,
+        )  # Require address pattern
+    ):
+        return line.strip()
+    return None
+
+
 def _parse_personal_info(lines: List[str]) -> Dict[str, str]:
     """
     Extract personal contact and identity fields from the top of OCR'd lines.
@@ -150,41 +196,36 @@ def _parse_personal_info(lines: List[str]) -> Dict[str, str]:
                 break
 
     for line in lines[:20]:  # only top of document
-        # Email
-        email_match = re.search(r"[\w\.-]+@[\w\.-]+\.\w+", line)
-        if email_match and not info.get("email"):
-            info["email"] = email_match.group(0)
-        # Phone
-        phone_match = re.search(r"\+41\s?\d{2}\s?\d{3}\s?\d{2}\s?\d{2}", line)
-        if phone_match and not info.get("phone"):
-            info["phone"] = phone_match.group(0)
-        # Date of Birth
-        dob_match = re.search(r"Date of Birth:\s*([\d.]+)", line)
-        if dob_match and not info.get("date_of_birth"):
-            info["date_of_birth"] = dob_match.group(1)
-        # Nationality
-        nat_match = re.search(r"Nationality:\s*(\w+)", line)
-        if nat_match and not info.get("nationality"):
-            info["nationality"] = nat_match.group(1)
-        # Permit
-        permit_match = re.search(r"Permit:\s*(.+?)(?:\s+|$)", line)
-        if permit_match and not info.get("permit"):
-            info["permit"] = permit_match.group(1).strip()
-        # Address (first line that looks like an address)
-        if (
-            not info.get("address")
-            and any(c.isdigit() for c in line)
-            and "Date of Birth" not in line
-            and not re.search(r"\+\d{2}\s?\d{2}", line)  # Skip phone numbers
-            and not re.search(
-                r"^\d{2}\.\d{2}\.\d{4}$", line.strip()
-            )  # Skip standalone dates
-            and re.search(
-                r"\d+\s+\w+|St\b|Street\b|Ave\b|Avenue\b|Rd\b|Road\b|Blvd\b|Lane\b|Strasse\b|strasse\b",
-                line,
-            )  # Require address pattern
-        ):
-            info["address"] = line.strip()
+        if not info.get("email"):
+            email = _extract_email(line)
+            if email:
+                info["email"] = email
+
+        if not info.get("phone"):
+            phone = _extract_phone(line)
+            if phone:
+                info["phone"] = phone
+
+        if not info.get("date_of_birth"):
+            dob = _extract_dob(line)
+            if dob:
+                info["date_of_birth"] = dob
+
+        if not info.get("nationality"):
+            nationality = _extract_nationality(line)
+            if nationality:
+                info["nationality"] = nationality
+
+        if not info.get("permit"):
+            permit = _extract_permit(line)
+            if permit:
+                info["permit"] = permit
+
+        if not info.get("address"):
+            address = _extract_address(line)
+            if address:
+                info["address"] = address
+
     return info
 
 
