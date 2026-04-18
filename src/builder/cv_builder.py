@@ -263,7 +263,7 @@ class CVBuilder:
     <h2 class="section">COMPETENCIES AND SKILLS</h2>
     {% for category, skills in cv.competencies_and_skills.items() %}
     <ul>
-    <li><div class="category">{{ category }}: </div> {% for skill in skills %}{{ skill }}, {% endfor %}</li>
+    <li><span class="category">{{ category }}:</span> {{ skills | join(", ") }}</li>
     </ul>
     {% endfor %}
 
