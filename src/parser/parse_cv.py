@@ -415,6 +415,10 @@ def _extract_name_and_title(lines: list[str], common_headers: set) -> tuple[str,
         if is_heading:
             continue
 
+        # Skip language header lines
+        if _extract_header_language_entries(stripped):
+            continue
+
         if (
             stripped
             and not is_heading
@@ -1015,7 +1019,7 @@ def parse_cv_to_json(pdf_path: str):
             i += 1
 
     # Preserve any header language entries when no dedicated LANGUAGES section is present.
-    if header_languages:
+    if header_languages and not cv_data["languages"]:
         for lang in header_languages:
             if lang not in cv_data["languages"]:
                 cv_data["languages"].append(lang)
