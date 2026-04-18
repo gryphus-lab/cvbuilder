@@ -533,6 +533,37 @@ def _collect_job_content(lines: list[str], start_idx: int) -> tuple[list[str], i
     return content_parts, i
 
 
+def _parse_single_job(
+    lines: list[str], job_header_idx: int
+) -> tuple[dict[str, Any], int]:
+    """
+    Parse a single job entry starting from the job header line.
+
+    Parameters:
+        lines (list[str]): OCR lines.
+        job_header_idx (int): Index of the job header line.
+
+    Returns:
+        tuple[dict, int]: The parsed job dict and the next index after the job content.
+    """
+    line = lines[job_header_idx].strip()
+    job_data = _parse_job_header(line)
+    job = {
+        "title": job_data["title"],
+        "company": job_data["company"],
+        "location": job_data["location"],
+        "dates": job_data["dates"],
+        "description": "",
+        "achievements": [],
+    }
+    i = job_header_idx + 1
+    content_parts, i = _collect_job_content(lines, i)
+    desc, achs = semantic_bullet_split(" ".join(content_parts), ACHIEVEMENT_KEYWORDS)
+    job["description"] = desc
+    job["achievements"] = achs
+    return job, i
+
+
 def _parse_experience(lines: list[str], start_idx: int) -> tuple[list[dict], int]:
     """
     Parse professional experience entries from OCR lines starting immediately after the given section header index.
@@ -559,22 +590,7 @@ def _parse_experience(lines: list[str], start_idx: int) -> tuple[list[dict], int
             break
 
         if _is_job_header(line):
-            job_data = _parse_job_header(line)
-            job = {
-                "title": job_data["title"],
-                "company": job_data["company"],
-                "location": job_data["location"],
-                "dates": job_data["dates"],
-                "description": "",
-                "achievements": [],
-            }
-            i += 1
-            content_parts, i = _collect_job_content(lines, i)
-            desc, achs = semantic_bullet_split(
-                " ".join(content_parts), ACHIEVEMENT_KEYWORDS
-            )
-            job["description"] = desc
-            job["achievements"] = achs
+            job, i = _parse_single_job(lines, i)
             jobs.append(job)
             continue
 
@@ -880,6 +896,23 @@ def _parse_inline_languages(lines: list[str], start_idx: int) -> tuple[list[str]
     return languages, next_idx
 
 
+def _detect_language_format(lines: list[str], start_idx: int) -> str | None:
+    """
+    Detect the format of the languages section: 'bulleted' or 'inline'.
+
+    Returns None if the section is empty.
+    """
+    i = start_idx + 1
+    while i < len(lines) and not _is_header(lines[i]):
+        line = lines[i].strip()
+        if line:
+            if line.startswith("•"):
+                return "bulleted"
+            return "inline"
+        i += 1
+    return None
+
+
 def _handle_languages_section(
     lines: list[str], start_idx: int
 ) -> tuple[list[str], int]:
@@ -895,19 +928,17 @@ def _handle_languages_section(
     Returns:
         tuple[list[str], int]: A tuple where the first element is the list of sanitized language entries (in original order) and the second element is the index of the next line to process after this section.
     """
-    # Peek at content to detect format
-    i = start_idx + 1
-    while i < len(lines) and not _is_header(lines[i]):
-        line = lines[i].strip()
-        if line:
-            # Delegate to appropriate parser based on first non-empty line
-            if line.startswith("•"):
-                return _parse_bulleted_languages(lines, start_idx)
-            return _parse_inline_languages(lines, start_idx)
-        i += 1
-
-    # Empty section fallback
-    return [], i
+    format_type = _detect_language_format(lines, start_idx)
+    if format_type == "bulleted":
+        return _parse_bulleted_languages(lines, start_idx)
+    elif format_type == "inline":
+        return _parse_inline_languages(lines, start_idx)
+    else:
+        # Empty section fallback
+        i = start_idx + 1
+        while i < len(lines) and not _is_header(lines[i]):
+            i += 1
+        return [], i
 
 
 def _handle_competencies_and_skills_section(
