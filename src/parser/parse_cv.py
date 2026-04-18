@@ -150,20 +150,20 @@ def _parse_personal_info(lines: List[str]) -> Dict[str, str]:
 
     # Try to extract name from first non-empty line (before any detected fields)
     for idx, line in enumerate(lines[:5]):
-        line = line.strip()
+        stripped = line.strip()
         # Skip section headers (all-caps, ends with ':', or matches known headers)
-        line_upper = line.upper().rstrip(':')
+        line_upper = stripped.upper().rstrip(':')
         is_heading = (line_upper in COMMON_HEADERS or
-                      (line.isupper() and len(line.split()) <= 3) or
-                      line.endswith(':'))
+                      (stripped.isupper() and len(stripped.split()) <= 3) or
+                      stripped.endswith(':'))
 
-        if line and not is_heading and not re.search(r'@|Date of Birth|Nationality|Permit|\+\d{2}', line):
+        if stripped and not is_heading and not re.search(r'@|Date of Birth|Nationality|Permit|\+\d{2}', stripped):
             # First line that doesn't look like contact info or header is likely the name
             if not info["name"]:
-                info["name"] = line
+                info["name"] = stripped
             elif not info["title"] and idx > 0:
                 # Second such line is likely the title/role
-                info["title"] = line
+                info["title"] = stripped
                 break
 
     for line in lines[:20]:  # only top of document
@@ -319,7 +319,7 @@ def parse_cv_to_json(pdf_path: str):
 
         if line_upper == "PROFILE":
             profile_lines, i = _parse_generic_section(lines, i)
-            cv_data["profile"] = "\n".join(profile_lines)
+            cv_data["profile"] = final_sanitize("\n".join(profile_lines))
         elif line_upper == "PROFESSIONAL EXPERIENCE":
             cv_data["professional_experience"], i = _parse_experience(lines, i)
         elif line_upper == "STRATEGIC IMPACT & TRANSFORMATIONS":
@@ -345,13 +345,24 @@ def parse_cv_to_json(pdf_path: str):
                 # Try to split by common separators
                 if "," in item:
                     parts = item.split(",", 1)
-                    # First part often contains institution or degree
-                    if degree_found:
-                        entry["degree"] = final_sanitize(parts[0])
-                        entry["institution"] = final_sanitize(parts[1])
+                    sanitized_parts = [final_sanitize(p) for p in parts]
+                    # Check which part contains the degree keyword
+                    part0_has_degree = any(deg_kw in sanitized_parts[0] for deg_kw in degree_keywords)
+                    part1_has_degree = len(sanitized_parts) > 1 and any(deg_kw in sanitized_parts[1] for deg_kw in degree_keywords)
+
+                    if part0_has_degree and not part1_has_degree:
+                        entry["degree"] = sanitized_parts[0]
+                        entry["institution"] = sanitized_parts[1] if len(sanitized_parts) > 1 else ""
+                    elif part1_has_degree and not part0_has_degree:
+                        entry["institution"] = sanitized_parts[0]
+                        entry["degree"] = sanitized_parts[1]
+                    elif degree_found:
+                        # Fallback to original heuristic when both or neither contain degree
+                        entry["degree"] = sanitized_parts[0]
+                        entry["institution"] = sanitized_parts[1] if len(sanitized_parts) > 1 else ""
                     else:
-                        entry["institution"] = final_sanitize(parts[0])
-                        entry["degree"] = final_sanitize(parts[1]) if len(parts) > 1 else ""
+                        entry["institution"] = sanitized_parts[0]
+                        entry["degree"] = sanitized_parts[1] if len(sanitized_parts) > 1 else ""
                 elif " - " in item:
                     parts = item.split(" - ", 1)
                     entry["institution"] = final_sanitize(parts[0])
@@ -378,25 +389,28 @@ def parse_cv_to_json(pdf_path: str):
             if has_bullets:
                 # Use bullet aggregation logic
                 current = None
-                for line in content:
-                    line = final_sanitize(line)
-                    if line and "linkedin.com" not in line.lower():
-                        if line.startswith("•"):
+                for original_line in content:
+                    if original_line.startswith("•"):
+                        sanitized_text = final_sanitize(original_line)
+                        if sanitized_text and "linkedin.com" not in sanitized_text.lower():
                             if current:
                                 languages.append(current)
-                            current = re.sub(r"^\s*•\s*", "", line).strip()
-                        elif current:
-                            current += " " + line
-                        else:
-                            current = line
+                            current = re.sub(r"^\s*•\s*", "", sanitized_text).strip()
+                    else:
+                        sanitized_text = final_sanitize(original_line)
+                        if sanitized_text and "linkedin.com" not in sanitized_text.lower():
+                            if current:
+                                current += " " + sanitized_text
+                            else:
+                                current = sanitized_text
                 if current:
                     languages.append(current)
             else:
                 # Treat each non-empty line as a separate language entry
-                for line in content:
-                    line = final_sanitize(line)
-                    if line and "linkedin.com" not in line.lower():
-                        languages.append(line)
+                for content_line in content:
+                    sanitized_line = final_sanitize(content_line)
+                    if sanitized_line and "linkedin.com" not in sanitized_line.lower():
+                        languages.append(sanitized_line)
 
             cv_data["languages"] = languages
         elif line_upper == "COMPETENCIES AND SKILLS":
