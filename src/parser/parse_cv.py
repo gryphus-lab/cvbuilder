@@ -447,7 +447,7 @@ def _contains_degree_keyword(text: str, degree_keywords: list[str]) -> bool:
     text_lower = text.lower()
     for deg_kw in degree_keywords:
         # Use word-boundary regex for whole-word matching
-        pattern = r'\b' + re.escape(deg_kw.lower()) + r'\b'
+        pattern = r"\b" + re.escape(deg_kw.lower()) + r"\b"
         if re.search(pattern, text_lower):
             return True
     return False
@@ -502,21 +502,39 @@ def _parse_dash_separated_education(item: str) -> dict[str, str]:
 
     # Check for common degree patterns in each part
     degree_patterns = [
-        r'\bPhD\b', r'\bBSc\b', r'\bMSc\b', r'\bMBA\b',
-        r'\bBachelor\b', r'\bMaster\b', r'\bDoctor\b',
-        r'\bB\.Tech\b', r'\bM\.Tech\b', r'\bB\.Sc\b', r'\bM\.Sc\b',
-        r'\bDoctorate\b'
+        r"\bPhD\b",
+        r"\bBSc\b",
+        r"\bMSc\b",
+        r"\bMBA\b",
+        r"\bBachelor\b",
+        r"\bMaster\b",
+        r"\bDoctor\b",
+        r"\bB\.Tech\b",
+        r"\bM\.Tech\b",
+        r"\bB\.Sc\b",
+        r"\bM\.Sc\b",
+        r"\bDoctorate\b",
     ]
 
-    institution_patterns = [
-        r'\bUniversity\b', r'\bCollege\b', r'\bInstitute\b'
-    ]
+    institution_patterns = [r"\bUniversity\b", r"\bCollege\b", r"\bInstitute\b"]
 
-    part0_has_degree = any(re.search(pattern, part0_sanitized, re.IGNORECASE) for pattern in degree_patterns)
-    part1_has_degree = any(re.search(pattern, part1_sanitized, re.IGNORECASE) for pattern in degree_patterns)
+    part0_has_degree = any(
+        re.search(pattern, part0_sanitized, re.IGNORECASE)
+        for pattern in degree_patterns
+    )
+    part1_has_degree = any(
+        re.search(pattern, part1_sanitized, re.IGNORECASE)
+        for pattern in degree_patterns
+    )
 
-    part0_has_institution = any(re.search(pattern, part0_sanitized, re.IGNORECASE) for pattern in institution_patterns)
-    part1_has_institution = any(re.search(pattern, part1_sanitized, re.IGNORECASE) for pattern in institution_patterns)
+    part0_has_institution = any(
+        re.search(pattern, part0_sanitized, re.IGNORECASE)
+        for pattern in institution_patterns
+    )
+    part1_has_institution = any(
+        re.search(pattern, part1_sanitized, re.IGNORECASE)
+        for pattern in institution_patterns
+    )
 
     # If left side has degree markers and right side has institution markers, swap
     if part0_has_degree and part1_has_institution:
