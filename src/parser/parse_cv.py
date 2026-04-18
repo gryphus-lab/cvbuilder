@@ -5,10 +5,17 @@ from typing import Any, Optional
 import pytesseract as pt
 from pdf2image import convert_from_path
 
-# Load configuration from project root
-CONFIG_PATH = Path(__file__).resolve().parent.parent.parent / "config.json"
-with open(CONFIG_PATH, encoding="utf-8") as f:
-    CONFIG = json.load(f)
+# Load configuration from package resources
+try:
+    # Python 3.9+
+    from importlib.resources import files
+    config_text = files(__package__).joinpath("config.json").read_text(encoding="utf-8")
+except (ImportError, AttributeError):
+    # Python 3.7-3.8 fallback
+    from importlib.resources import read_text
+    config_text = read_text(__package__, "config.json")
+
+CONFIG = json.loads(config_text)
 
 SECTION_HEADERS = CONFIG["section_headers"]
 ACHIEVEMENT_KEYWORDS = CONFIG["achievement_keywords"]
