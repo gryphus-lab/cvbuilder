@@ -753,11 +753,11 @@ def test_extract_name_and_title_skips_email_line():
 def test_extract_name_and_title_skips_section_headers():
     """
     Extract the candidate's name and job title from the top lines while ignoring section header lines.
-    
+
     Parameters:
         lines (list[str]): Ordered lines from the top of a CV/document.
         headers (set[str]): Set of section header strings to ignore when locating name/title.
-    
+
     Returns:
         tuple: (name (str), title (str)) where `name` is the first line not in `headers` and `title` is the next non-header line; empty strings are returned if a value is not found.
     """
@@ -979,7 +979,7 @@ def test_handle_education_section_returns_list_of_dicts():
 def test_handle_education_section_empty():
     """
     Verify that _handle_education_section returns an empty list and advances to the next section when the EDUCATION header has no entries.
-    
+
     Asserts that:
     - the parsed education list is empty, and
     - the returned next index points to the following header line (1).
