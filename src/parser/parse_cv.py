@@ -203,12 +203,12 @@ def _extract_permit(line: str) -> Optional[str]:
 def _extract_header_language_entries(line: str) -> list[str] | None:
     """
     Extracts language entries from a single header-like line.
-    
+
     Detects explicit language header labels (`languages`, `sprache`, `sprachen`) followed by `:`/`-`/EN DASH or nothing, then parses the trailing content as comma- or semicolon-separated language entries. Rejects excessively long input lines, sanitizes each entry, and excludes entries that contain `linkedin.com`. Returns None when the line does not contain a language header or contains no parsable entries.
-    
+
     Parameters:
         line (str): A single line of text (typically OCR output) to inspect for a language header.
-    
+
     Returns:
         list[str] | None: A list of sanitized language entries when a language header is present; `None` if no header-language content is detected.
     """
@@ -239,12 +239,12 @@ def _extract_header_language_entries(line: str) -> list[str] | None:
 def _parse_header_languages(lines: list[str]) -> list[str]:
     """
     Extract language declarations found in header-style lines near the start of the document.
-    
+
     Scans at most the first 20 lines and stops when a section header is encountered, collecting any language entries declared in header-like lines (comma- or semicolon-separated).
-    
+
     Parameters:
         lines (list[str]): Lines of OCR/text from the document, in order from top to bottom.
-    
+
     Returns:
         list[str]: Sanitized language entries found in header lines, in the order they were encountered.
     """
@@ -264,7 +264,7 @@ def _parse_header_languages(lines: list[str]) -> list[str]:
 def _is_standalone_date(text: str) -> bool:
     """
     Determine whether the input is an exact date in the dd.mm.yyyy format.
-    
+
     Returns:
         `True` if the string consists of three dot-separated numeric parts with lengths 2, 2, and 4 (day, month, year), `False` otherwise.
     """
@@ -279,20 +279,8 @@ def _is_standalone_date(text: str) -> bool:
     )
 
 
-def _looks_like_address(line: str) -> bool:
-    """
-    Determine whether a text line likely represents a postal address.
-    
-    Parameters:
-        line (str): A single line of OCR/extracted text to evaluate for address-like structure.
-    
-    Returns:
-        bool: `True` if the line likely represents an address (street/number pattern, contains address keywords, short comma-separated city/region, or common address abbreviations), `False` otherwise.
-    """
-    normalized = line.lower()
-    tokens = normalized.split()
-
-    # Numeric street-number patterns like '123 Main Street' or 'Musterstrasse 10'
+def _has_numeric_street_pattern(tokens: list[str]) -> bool:
+    """Check for numeric street-number patterns like '123 Main Street'."""
     for idx, token in enumerate(tokens[:-1]):
         next_token = tokens[idx + 1]
         if any(c.isdigit() for c in token) and any(c.isalpha() for c in next_token):
@@ -311,7 +299,11 @@ def _looks_like_address(line: str) -> bool:
             ):
                 continue
             return True
+    return False
 
+
+def _has_address_keywords(normalized: str) -> bool:
+    """Check for address-related keywords."""
     address_keywords = (
         " street",
         " ave",
@@ -323,65 +315,88 @@ def _looks_like_address(line: str) -> bool:
         "strasse",
         "address:",
     )
-    if any(keyword in normalized for keyword in address_keywords):
-        return True
+    return any(keyword in normalized for keyword in address_keywords)
 
-    # Common header-style city / country or city, region patterns without a street number.
-    if "," in line:
-        if any(
-            marker in normalized
-            for marker in (
-                "@",
-                "linkedin.com",
-                "http://",
-                "https://",
-                "www.",
-                "date of birth",
-                "nationality:",
-                "permit:",
-            )
+
+def _has_comma_separated_location(line: str, normalized: str) -> bool:
+    """Check for common header-style city/country patterns."""
+    if "," not in line:
+        return False
+    if any(
+        marker in normalized
+        for marker in (
+            "@",
+            "linkedin.com",
+            "http://",
+            "https://",
+            "www.",
+            "date of birth",
+            "nationality:",
+            "permit:",
+        )
+    ):
+        return False
+    if len(line) > 60:
+        return False
+    segments = [seg.strip() for seg in normalized.split(",") if seg.strip()]
+    if 2 <= len(segments) <= 3:
+        bad_terms = (
+            "engineer",
+            "manager",
+            "developer",
+            "consultant",
+            "architect",
+            "director",
+            "company",
+            "corp",
+            "inc",
+            "llc",
+            "solutions",
+            "experience",
+            "years",
+            "year",
+            "immersion",
+            "seniority",
+            "transformation",
+            "leader",
+        )
+        if not any(term in normalized for term in bad_terms) and all(
+            re.search(r"[a-z]", seg) for seg in segments
         ):
-            return False
-        if len(line) > 60:
-            return False
-        segments = [seg.strip() for seg in normalized.split(",") if seg.strip()]
-        if 2 <= len(segments) <= 3:
-            bad_terms = (
-                "engineer",
-                "manager",
-                "developer",
-                "consultant",
-                "architect",
-                "director",
-                "company",
-                "corp",
-                "inc",
-                "llc",
-                "solutions",
-                "experience",
-                "years",
-                "year",
-                "immersion",
-                "seniority",
-                "transformation",
-                "leader",
-            )
-            if not any(term in normalized for term in bad_terms) and all(
-                re.search(r"[a-z]", seg) for seg in segments
-            ):
-                return True
+            return True
+    return False
 
-    if normalized.startswith("st ") or normalized.endswith(" st"):
+
+def _has_st_pattern(normalized: str) -> bool:
+    """Check for 'st ' patterns."""
+    return normalized.startswith("st ") or normalized.endswith(" st")
+
+
+def _looks_like_address(line: str) -> bool:
+    normalized = line.lower()
+    tokens = normalized.split()
+
+    if _has_numeric_street_pattern(tokens):
         return True
+
+    if _has_address_keywords(normalized):
+        return True
+
+    if _has_comma_separated_location(line, normalized):
+        return True
+
+    if _has_st_pattern(normalized):
+        return True
+
     return False
 
 
 def _extract_address(line: str) -> Optional[str]:
     """
     Determine whether a line contains an address and return the address portion when found.
-    
+
     Supports detection of short location/address lines and combined header rows in the form `address | phone | email` (returns the leftmost address part when phone and email are present).
-    
+
     Returns:
         Optional[str]: The trimmed address string if the line appears to contain an address, `None` otherwise.
     """
@@ -410,16 +425,32 @@ def _extract_address(line: str) -> Optional[str]:
     return None
 
 
+def _is_line_heading(stripped: str, common_headers: set) -> bool:
+    """Determine if a stripped line is a section header."""
+    line_upper = stripped.upper().rstrip(":")
+    return (
+        line_upper in common_headers
+        or stripped.endswith(":")
+        or any(line_upper.startswith(header + " ") for header in common_headers)
+        or any((header + ":") in stripped for header in common_headers)
+    )
+
+
+def _looks_like_contact_info(stripped: str) -> bool:
+    """Check if a stripped line looks like contact or identity data."""
+    return bool(re.search(r"@|Date of Birth|Nationality|Permit|\+\d{2}", stripped))
+
+
 def _extract_name_and_title(lines: list[str], common_headers: set) -> tuple[str, str]:
     """
     Select the candidate's name and title from the top OCR lines.
-    
+
     Scans up to the first five lines and picks the first line that is not a section header, language header, or obvious contact/identity token as the name; uses the next such line (if present) as the title. Parsing halts early if a section header is encountered after both values are found.
-    
+
     Parameters:
         lines (list[str]): OCR-extracted lines from the top of the document.
         common_headers (set): Uppercased section header tokens used to recognize and skip heading lines.
-    
+
     Returns:
         tuple[str, str]: (name, title) where each is the trimmed line string or an empty string if not found.
     """
@@ -428,14 +459,7 @@ def _extract_name_and_title(lines: list[str], common_headers: set) -> tuple[str,
 
     for idx, line in enumerate(lines[:5]):
         stripped = line.strip()
-        # Skip section headers using config-driven SECTION_HEADERS
-        line_upper = stripped.upper().rstrip(":")
-        is_heading = (
-            line_upper in common_headers
-            or stripped.endswith(":")
-            or any(line_upper.startswith(header + " ") for header in common_headers)
-            or any((header + ":") in stripped for header in common_headers)
-        )
+        is_heading = _is_line_heading(stripped, common_headers)
 
         # If we've already captured name/title, stop at section headers
         if is_heading and name and title:
@@ -449,11 +473,7 @@ def _extract_name_and_title(lines: list[str], common_headers: set) -> tuple[str,
         if _extract_header_language_entries(stripped):
             continue
 
-        if (
-            stripped
-            and not is_heading
-            and not re.search(r"@|Date of Birth|Nationality|Permit|\+\d{2}", stripped)
-        ):
+        if stripped and not _looks_like_contact_info(stripped):
             # First line that doesn't look like contact info or header is likely the name
             if not name:
                 name = stripped
@@ -547,11 +567,11 @@ def _parse_job_header(line: str) -> dict[str, str]:
 def _collect_job_content(lines: list[str], start_idx: int) -> tuple[list[str], int]:
     """
     Collects consecutive non-header lines belonging to a job entry starting at a given index.
-    
+
     Parameters:
         lines (list[str]): The list of stripped OCR lines to scan.
         start_idx (int): Index in `lines` at which to begin collection.
-    
+
     Returns:
         content_parts (list[str]): Stripped lines that belong to the job description (may be empty).
         next_index (int): Index of the first line that is a section header, a job header, or `len(lines)` if end was reached.
@@ -571,13 +591,13 @@ def _parse_single_job(
 ) -> tuple[dict[str, Any], int]:
     """
     Parse a single job entry and extract its structured fields from OCR lines.
-    
+
     Parses the header at job_header_idx to populate title, company, location and dates, then collects the following content as a description and a list of achievement bullets.
-    
+
     Parameters:
         lines (list[str]): OCR-extracted, stripped lines from the document.
         job_header_idx (int): Index of the line containing the job header.
-    
+
     Returns:
         tuple[dict, int]: A tuple (job, next_index) where `job` contains the keys
         `title`, `company`, `location`, `dates`, `description`, and `achievements`,
@@ -983,13 +1003,13 @@ def _handle_competencies_and_skills_section(
 ) -> tuple[dict, int]:
     """
     Map competencies and skills in the section to sanitized category→skill lists.
-    
+
     Parses the section starting after start_idx, splits content into keyword-led blocks using SKILL_KEYWORDS, and for each block containing a colon treats the left side as a category and the right side as comma- or semicolon-separated skills. Category names and skill values are sanitized; blocks without a colon are ignored.
-    
+
     Parameters:
         lines (list[str]): All OCR lines from the document.
         start_idx (int): Index of the section header line; parsing begins at the following line.
-    
+
     Returns:
         tuple[dict, int]: A tuple where the first element maps sanitized category names to lists of sanitized skill strings, and the second element is the index of the first line after the section.
     """
