@@ -17,4 +17,7 @@ dependencies = [
 optional-dependencies = { test = ["pytest>=9.0.3", "pytest-cov>=6.2.1"] }
 
 [tool.setuptools]
-py-modules = ["main"]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
