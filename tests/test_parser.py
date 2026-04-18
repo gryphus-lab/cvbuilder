@@ -23,8 +23,8 @@ def test_is_header():
 
 def test_final_sanitize():
     input_text = "Al- Efficiency ii and OpenAl •"
-    # Expected: ii -> ü, Al- -> AI-, OpenAl -> OpenAI, • removed, extra space handled
-    expected = "AI- Efficiency ü and OpenAI"
+    # Expected: ii -> ü, Al- not replaced (no AI keyword), OpenAl -> OpenAI, • removed, extra space handled
+    expected = "Al- Efficiency ü and OpenAI"
     assert final_sanitize(input_text) == expected
 
 
@@ -152,8 +152,8 @@ def test_final_sanitize_empty_string():
 
 
 def test_final_sanitize_al_space_replacement():
-    """'Al ' (with trailing space) should become 'AI '."""
-    result = final_sanitize("Al Cloud Services")
+    """'Al ' (with trailing space) should become 'AI ' when followed by AI keywords."""
+    result = final_sanitize("Al GPT Cloud Services")
     # The "Al " prefix must be replaced; trailing single chars may be stripped by sanitize
     assert "Al " not in result
     assert result.startswith("AI")
@@ -355,6 +355,46 @@ def test_final_sanitize_al_dash_replacement():
     """'Al-' must be corrected to 'AI-'."""
     result = final_sanitize("Al-powered system")
     assert result.startswith("AI-")
+
+
+def test_final_sanitize_al_replacement_positive_cases():
+    """Test that 'Al' is replaced to 'AI' when followed by AI-related keywords."""
+    # Test dash cases
+    assert final_sanitize("Al-GPT model") == "AI-GPT model"
+    assert final_sanitize("Al-Chat bot") == "AI-Chat bot"
+    assert final_sanitize("Al-Open source") == "AI-Open source"
+    assert final_sanitize("Al-API service") == "AI-API service"
+    assert final_sanitize("Al-Model training") == "AI-Model training"
+    assert final_sanitize("Al-powered system") == "AI-powered system"
+    assert final_sanitize("Al-based solution") == "AI-based solution"
+    assert final_sanitize("Al-driven analytics") == "AI-driven analytics"
+    assert final_sanitize("Al-generated content") == "AI-generated content"
+    assert final_sanitize("Al-ML algorithm") == "AI-ML algorithm"
+
+    # Test space cases
+    assert final_sanitize("Al GPT model") == "AI GPT model"
+    assert final_sanitize("Al Chat bot") == "AI Chat bot"
+    assert final_sanitize("Al Open source") == "AI Open source"
+    assert final_sanitize("Al API service") == "AI API service"
+    assert final_sanitize("Al Model training") == "AI Model training"
+    assert final_sanitize("Al powered system") == "AI powered system"
+    assert final_sanitize("Al based solution") == "AI based solution"
+    assert final_sanitize("Al driven analytics") == "AI driven analytics"
+    assert final_sanitize("Al generated content") == "AI generated content"
+    assert final_sanitize("Al ML algorithm") == "AI ML algorithm"
+
+    # Test case insensitivity
+    assert final_sanitize("al-gpt model") == "AI-gpt model"
+    assert final_sanitize("Al gPt model") == "AI gPt model"
+
+
+def test_final_sanitize_al_replacement_negative_cases():
+    """Test that 'Al' is NOT replaced when not followed by AI-related keywords."""
+    # No replacement for non-AI terms
+    assert final_sanitize("Al Cloud Services") == "Al Cloud Services"
+    assert final_sanitize("Aluminum foil") == "Aluminum foil"
+    assert final_sanitize("Al-gebra") == "Al-gebra"
+    assert final_sanitize("Al pha") == "Al pha"
 
 
 def test_is_header_with_surrounding_whitespace():

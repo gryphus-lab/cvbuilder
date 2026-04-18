@@ -1,12 +1,12 @@
 import re
 import json
 from pathlib import Path
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 import pytesseract as pt
 from pdf2image import convert_from_path
 
 # Load configuration from project root
-CONFIG_PATH = Path("config.json")
+CONFIG_PATH = Path(__file__).resolve().parent.parent.parent / "config.json"
 with open(CONFIG_PATH, encoding="utf-8") as f:
     CONFIG = json.load(f)
 
@@ -39,8 +39,16 @@ def final_sanitize(text: str) -> str:
         return ""
 
     # Apply OCR normalizations - targeted "Al" → "AI" fixes for AI-related terms only
-    text = re.sub(r"\bAl-(?=GPT|Chat|Open|API|Model)", "AI-", text)
-    text = re.sub(r"\bAl (?=GPT|Chat|Open|API|Model)", "AI ", text)
+    text = re.sub(
+        r"(?i)\bAl-(?=GPT|Chat|Open|API|Model|powered|based|driven|generated|ML)",
+        "AI-",
+        text,
+    )
+    text = re.sub(
+        r"(?i)\bAl (?=GPT|Chat|Open|API|Model|powered|based|driven|generated|ML)",
+        "AI ",
+        text,
+    )
     text = re.sub(r"OpenAl\b", "OpenAI", text)
     text = re.sub(r"[•©¢]", "", text)
 
@@ -94,51 +102,53 @@ def semantic_bullet_split(text: str, keywords: list) -> tuple[str, list[str]]:
     return lead_in, bullets
 
 
-def _extract_email(line: str) -> str:
+def _extract_email(line: str) -> Optional[str]:
     """Extract email address from a line."""
     email_match = re.search(r"[\w\.-]+@[\w\.-]+\.\w+", line)
     return email_match.group(0) if email_match else None
 
 
-def _extract_phone(line: str) -> str:
+def _extract_phone(line: str) -> Optional[str]:
     """Extract phone number from a line."""
     # Match international E.164-style phone numbers with flexible separators
-    phone_match = re.search(r"\+[\d\s\-()]{7,18}", line)
+    phone_match = re.search(r"(?:\+[\d]{1,3})?[\d\s\-().]{7,18}", line)
     if phone_match:
         # Normalize by removing spaces, dashes, and parentheses while preserving the leading +
         phone = phone_match.group(0)
-        normalized = "+" + re.sub(r"[\s\-()]", "", phone[1:])
-        # Validate that the normalized number has 7-15 digits after the +
-        if re.match(r"\+\d{7,15}$", normalized):
+        normalized = re.sub(r"[\s\-().]", "", phone)
+        # Validate that the normalized number has 7-15 digits, optionally with leading +
+        if re.match(r"(?:\+)?\d{7,15}$", normalized):
             return normalized
     return None
 
 
-def _extract_dob(line: str) -> str:
+def _extract_dob(line: str) -> Optional[str]:
     """Extract date of birth from a line."""
     dob_match = re.search(r"Date of Birth:\s*([\d.]+)", line)
     return dob_match.group(1) if dob_match else None
 
 
-def _extract_nationality(line: str) -> str:
+def _extract_nationality(line: str) -> Optional[str]:
     """Extract nationality from a line."""
     nat_match = re.search(r"Nationality:\s*(\w+)", line)
     return nat_match.group(1) if nat_match else None
 
 
-def _extract_permit(line: str) -> str:
+def _extract_permit(line: str) -> Optional[str]:
     """Extract permit information from a line."""
     permit_match = re.search(r"Permit:\s*(.+)$", line)
     return permit_match.group(1).strip() if permit_match else None
 
 
-def _extract_address(line: str) -> str:
+def _extract_address(line: str) -> Optional[str]:
     """Extract address from a line if it looks like an address."""
     if (
         any(c.isdigit() for c in line)
         and "Date of Birth" not in line
         and not re.search(r"\+\d{2}\s?\d{2}", line)  # Skip phone numbers
-        and not re.search(r"^\d{2}\.\d{2}\.\d{4}$", line.strip())  # Skip standalone dates
+        and not re.search(
+            r"^\d{2}\.\d{2}\.\d{4}$", line.strip()
+        )  # Skip standalone dates
         and re.search(
             r"\d+\s+\w+|St\b|Street\b|Ave\b|Avenue\b|Rd\b|Road\b|Blvd\b|Lane\b|Strasse\b|strasse\b",
             line,
