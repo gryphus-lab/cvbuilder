@@ -237,7 +237,7 @@ def test_parse_generic_section_basic():
 
 def test_parse_generic_section_skips_blank_lines():
     lines = ["LANGUAGES", "English (Native)", "", "German (B2)", "EDUCATION"]
-    items, next_idx = _parse_generic_section(lines, 0)
+    items, _ = _parse_generic_section(lines, 0)
     assert "" not in items
     assert len(items) == 2
 
@@ -490,8 +490,8 @@ def test_final_sanitize_ii_to_umlaut_ocr_artifact():
     assert result == "Zürich"
 
     # Test another case - exact match
-    result = final_sanitize("Mïnchen was misread as Miinchen")
-    assert result == "Mïnchen was misread as München"
+    result = final_sanitize("Miinchen was misread as Miinchen")
+    assert result == "München was misread as München"
 
     # Test that capitalized non-OCR word remains unchanged
     result = final_sanitize("Hawaii")

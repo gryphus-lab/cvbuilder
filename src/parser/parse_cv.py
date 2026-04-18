@@ -187,23 +187,23 @@ def _parse_personal_info(lines: List[str]) -> Dict[str, str]:
     for line in lines[:20]:  # only top of document
         # Email
         email_match = re.search(r"[\w\.-]+@[\w\.-]+\.\w+", line)
-        if email_match:
+        if email_match and not info.get("email"):
             info["email"] = email_match.group(0)
         # Phone
         phone_match = re.search(r"\+41\s?\d{2}\s?\d{3}\s?\d{2}\s?\d{2}", line)
-        if phone_match:
+        if phone_match and not info.get("phone"):
             info["phone"] = phone_match.group(0)
         # Date of Birth
         dob_match = re.search(r"Date of Birth:\s*([\d.]+)", line)
-        if dob_match:
+        if dob_match and not info.get("date_of_birth"):
             info["date_of_birth"] = dob_match.group(1)
         # Nationality
         nat_match = re.search(r"Nationality:\s*(\w+)", line)
-        if nat_match:
+        if nat_match and not info.get("nationality"):
             info["nationality"] = nat_match.group(1)
         # Permit
         permit_match = re.search(r"Permit:\s*(.+?)(?:\s+|$)", line)
-        if permit_match:
+        if permit_match and not info.get("permit"):
             info["permit"] = permit_match.group(1).strip()
         # Address (first line that looks like an address)
         # Skip lines already identified as phone or date, and require address-like pattern
@@ -409,17 +409,14 @@ def parse_cv_to_json(pdf_path: str):
                     parts = item.split(" - ", 1)
                     entry["institution"] = final_sanitize(parts[0])
                     entry["degree"] = final_sanitize(parts[1]) if len(parts) > 1 else ""
+                elif degree_found:
+                    # No separator found and degree detected
+                    entry["degree"] = sanitized
+                elif "Institute" in item or "University" in item or "College" in item:
+                    entry["institution"] = sanitized
                 else:
-                    # No separator found, use heuristics
-                    if degree_found:
-                        entry["degree"] = sanitized
-                    elif (
-                        "Institute" in item or "University" in item or "College" in item
-                    ):
-                        entry["institution"] = sanitized
-                    else:
-                        # Fallback: use the whole line as institution
-                        entry["institution"] = sanitized
+                    # Fallback: use the whole line as institution
+                    entry["institution"] = sanitized
 
                 edu.append(entry)
             cv_data["education"] = edu
@@ -435,14 +432,17 @@ def parse_cv_to_json(pdf_path: str):
                 current = None
                 for original_line in content:
                     if original_line.startswith("•"):
-                        sanitized_text = final_sanitize(original_line)
+                        line_without_bullet = re.sub(
+                            r"^\s*•\s*", "", original_line
+                        ).strip()
+                        sanitized_text = final_sanitize(line_without_bullet)
                         if (
                             sanitized_text
                             and "linkedin.com" not in sanitized_text.lower()
                         ):
                             if current:
                                 languages.append(current)
-                            current = re.sub(r"^\s*•\s*", "", sanitized_text).strip()
+                            current = sanitized_text
                     else:
                         sanitized_text = final_sanitize(original_line)
                         if (
