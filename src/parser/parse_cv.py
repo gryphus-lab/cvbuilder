@@ -102,8 +102,16 @@ def _extract_email(line: str) -> str:
 
 def _extract_phone(line: str) -> str:
     """Extract phone number from a line."""
-    phone_match = re.search(r"\+41\s?\d{2}\s?\d{3}\s?\d{2}\s?\d{2}", line)
-    return phone_match.group(0) if phone_match else None
+    # Match international E.164-style phone numbers with flexible separators
+    phone_match = re.search(r"\+[\d\s\-()]{7,18}", line)
+    if phone_match:
+        # Normalize by removing spaces, dashes, and parentheses while preserving the leading +
+        phone = phone_match.group(0)
+        normalized = "+" + re.sub(r"[\s\-()]", "", phone[1:])
+        # Validate that the normalized number has 7-15 digits after the +
+        if re.match(r"\+\d{7,15}$", normalized):
+            return normalized
+    return None
 
 
 def _extract_dob(line: str) -> str:
