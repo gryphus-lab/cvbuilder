@@ -74,16 +74,16 @@ def final_sanitize(text: str) -> str:
         return ""
 
     # Apply OCR normalizations
-    text = re.sub(r'\bAl-', 'AI-', text)
-    text = re.sub(r'\bAl\s', 'AI ', text)
-    text = re.sub(r'OpenAl\b', 'OpenAI', text)
-    text = re.sub(r'[•©¢]', '', text)
+    text = re.sub(r"\bAl-", "AI-", text)
+    text = re.sub(r"\bAl\s", "AI ", text)
+    text = re.sub(r"OpenAl\b", "OpenAI", text)
+    text = re.sub(r"[•©¢]", "", text)
 
     # Replace 'ii' with 'ü' only in specific OCR contexts (e.g., Zürich misread as Ziirich)
     # Match standalone 'ii' or 'ii' NOT preceded by a vowel (to avoid Hawaii)
-    text = re.sub(r'\bii\b', 'ü', text)  # standalone 'ii'
+    text = re.sub(r"\bii\b", "ü", text)  # standalone 'ii'
     # Match capitalized words with 'ii' not preceded by a vowel (Ziirich, Miinchen)
-    text = re.sub(r'\b([A-Z](?:[^aeiouAEIOU])*?)ii(\w*)\b', r'\1ü\2', text)
+    text = re.sub(r"\b([A-Z](?:[^aeiouAEIOU])*?)ii(\w*)\b", r"\1ü\2", text)
 
     for kw in ACHIEVEMENT_KEYWORDS + SKILL_KEYWORDS + STRATEGIC_KEYWORDS:
         double_pattern = rf"\b({re.escape(kw)})\s+({re.escape(kw)})\b"
@@ -144,21 +144,38 @@ def _parse_personal_info(lines: List[str]) -> Dict[str, str]:
     info = {"name": "", "title": ""}
 
     # Common section headers to skip
-    COMMON_HEADERS = {"PROFILE", "SUMMARY", "EXPERIENCE", "EDUCATION", "SKILLS", "PROJECTS",
-                      "PROFESSIONAL EXPERIENCE", "STRATEGIC IMPACT & TRANSFORMATIONS",
-                      "CERTIFICATES AND TRAINING", "LANGUAGES", "COMPETENCIES AND SKILLS", "VOLUNTEERING"}
+    COMMON_HEADERS = {
+        "PROFILE",
+        "SUMMARY",
+        "EXPERIENCE",
+        "EDUCATION",
+        "SKILLS",
+        "PROJECTS",
+        "PROFESSIONAL EXPERIENCE",
+        "STRATEGIC IMPACT & TRANSFORMATIONS",
+        "CERTIFICATES AND TRAINING",
+        "LANGUAGES",
+        "COMPETENCIES AND SKILLS",
+        "VOLUNTEERING",
+    }
 
     # Try to extract name from first non-empty line (before any detected fields)
     for idx, line in enumerate(lines[:5]):
         stripped = line.strip()
         # Skip section headers (matches known headers or obvious header patterns)
-        line_upper = stripped.upper().rstrip(':')
-        is_heading = (line_upper in COMMON_HEADERS or
-                      stripped.endswith(':') or
-                      any(word in COMMON_HEADERS for word in line_upper.split()) or
-                      any(line_upper.startswith(header) for header in COMMON_HEADERS))
+        line_upper = stripped.upper().rstrip(":")
+        is_heading = (
+            line_upper in COMMON_HEADERS
+            or stripped.endswith(":")
+            or any(word in COMMON_HEADERS for word in line_upper.split())
+            or any(line_upper.startswith(header) for header in COMMON_HEADERS)
+        )
 
-        if stripped and not is_heading and not re.search(r'@|Date of Birth|Nationality|Permit|\+\d{2}', stripped):
+        if (
+            stripped
+            and not is_heading
+            and not re.search(r"@|Date of Birth|Nationality|Permit|\+\d{2}", stripped)
+        ):
             # First line that doesn't look like contact info or header is likely the name
             if not info["name"]:
                 info["name"] = stripped
@@ -194,9 +211,14 @@ def _parse_personal_info(lines: List[str]) -> Dict[str, str]:
             not info.get("address")
             and any(c.isdigit() for c in line)
             and "Date of Birth" not in line
-            and not re.search(r'\+\d{2}\s?\d{2}', line)  # Skip phone numbers
-            and not re.search(r'^\d{2}\.\d{2}\.\d{4}$', line.strip())  # Skip standalone dates
-            and re.search(r'\d+\s+\w+|St\b|Street\b|Ave\b|Avenue\b|Rd\b|Road\b|Blvd\b|Lane\b|Strasse\b|strasse\b', line)  # Require address pattern
+            and not re.search(r"\+\d{2}\s?\d{2}", line)  # Skip phone numbers
+            and not re.search(
+                r"^\d{2}\.\d{2}\.\d{4}$", line.strip()
+            )  # Skip standalone dates
+            and re.search(
+                r"\d+\s+\w+|St\b|Street\b|Ave\b|Avenue\b|Rd\b|Road\b|Blvd\b|Lane\b|Strasse\b|strasse\b",
+                line,
+            )  # Require address pattern
         ):
             info["address"] = line.strip()
     return info
@@ -205,7 +227,7 @@ def _parse_personal_info(lines: List[str]) -> Dict[str, str]:
 def _parse_experience(lines: list[str], start_idx: int) -> tuple[list[dict], int]:
     """
     Parse consecutive professional experience entries from OCR lines starting after start_idx.
-    
+
     @param lines: List of OCR-extracted, non-empty lines.
     @param start_idx: Index of the header line that begins the experience section; parsing starts from the next line.
     @returns: A tuple (jobs, next_index) where `jobs` is a list of job dictionaries and `next_index` is the line index where parsing stopped (the first header or end). Each job dictionary contains:
@@ -274,10 +296,10 @@ def _parse_generic_section(lines: List[str], start_idx: int) -> Tuple[List[str],
 def parse_cv_to_json(pdf_path: str):
     """
     Parse a CV PDF and extract structured resume data as a JSON-serializable dictionary.
-    
+
     Parameters:
         pdf_path (str): Path to the PDF file containing the CV.
-    
+
     Returns:
         dict: A mapping with the following keys:
             - personal_info (dict): Extracted contact and identity fields (e.g., email, phone, date_of_birth, nationality, permit, address) where available.
@@ -330,7 +352,16 @@ def parse_cv_to_json(pdf_path: str):
         elif line_upper == "EDUCATION":
             content, i = _parse_generic_section(lines, i)
             edu = []
-            degree_keywords = ["Bachelor", "Master", "B.Tech", "B.Sc", "M.Tech", "M.Sc", "PhD", "Doctorate"]
+            degree_keywords = [
+                "Bachelor",
+                "Master",
+                "B.Tech",
+                "B.Sc",
+                "M.Tech",
+                "M.Sc",
+                "PhD",
+                "Doctorate",
+            ]
 
             for item in content:
                 sanitized = final_sanitize(item)
@@ -348,22 +379,32 @@ def parse_cv_to_json(pdf_path: str):
                     parts = item.split(",", 1)
                     sanitized_parts = [final_sanitize(p) for p in parts]
                     # Check which part contains the degree keyword
-                    part0_has_degree = any(deg_kw in sanitized_parts[0] for deg_kw in degree_keywords)
-                    part1_has_degree = len(sanitized_parts) > 1 and any(deg_kw in sanitized_parts[1] for deg_kw in degree_keywords)
+                    part0_has_degree = any(
+                        deg_kw in sanitized_parts[0] for deg_kw in degree_keywords
+                    )
+                    part1_has_degree = len(sanitized_parts) > 1 and any(
+                        deg_kw in sanitized_parts[1] for deg_kw in degree_keywords
+                    )
 
                     if part0_has_degree and not part1_has_degree:
                         entry["degree"] = sanitized_parts[0]
-                        entry["institution"] = sanitized_parts[1] if len(sanitized_parts) > 1 else ""
+                        entry["institution"] = (
+                            sanitized_parts[1] if len(sanitized_parts) > 1 else ""
+                        )
                     elif part1_has_degree and not part0_has_degree:
                         entry["institution"] = sanitized_parts[0]
                         entry["degree"] = sanitized_parts[1]
                     elif degree_found:
                         # Fallback to original heuristic when both or neither contain degree
                         entry["degree"] = sanitized_parts[0]
-                        entry["institution"] = sanitized_parts[1] if len(sanitized_parts) > 1 else ""
+                        entry["institution"] = (
+                            sanitized_parts[1] if len(sanitized_parts) > 1 else ""
+                        )
                     else:
                         entry["institution"] = sanitized_parts[0]
-                        entry["degree"] = sanitized_parts[1] if len(sanitized_parts) > 1 else ""
+                        entry["degree"] = (
+                            sanitized_parts[1] if len(sanitized_parts) > 1 else ""
+                        )
                 elif " - " in item:
                     parts = item.split(" - ", 1)
                     entry["institution"] = final_sanitize(parts[0])
@@ -372,7 +413,9 @@ def parse_cv_to_json(pdf_path: str):
                     # No separator found, use heuristics
                     if degree_found:
                         entry["degree"] = sanitized
-                    elif "Institute" in item or "University" in item or "College" in item:
+                    elif (
+                        "Institute" in item or "University" in item or "College" in item
+                    ):
                         entry["institution"] = sanitized
                     else:
                         # Fallback: use the whole line as institution
@@ -393,13 +436,19 @@ def parse_cv_to_json(pdf_path: str):
                 for original_line in content:
                     if original_line.startswith("•"):
                         sanitized_text = final_sanitize(original_line)
-                        if sanitized_text and "linkedin.com" not in sanitized_text.lower():
+                        if (
+                            sanitized_text
+                            and "linkedin.com" not in sanitized_text.lower()
+                        ):
                             if current:
                                 languages.append(current)
                             current = re.sub(r"^\s*•\s*", "", sanitized_text).strip()
                     else:
                         sanitized_text = final_sanitize(original_line)
-                        if sanitized_text and "linkedin.com" not in sanitized_text.lower():
+                        if (
+                            sanitized_text
+                            and "linkedin.com" not in sanitized_text.lower()
+                        ):
                             if current:
                                 current += " " + sanitized_text
                             else:
@@ -440,7 +489,7 @@ def parse_cv_to_json(pdf_path: str):
 def save_to_json(data: Dict[str, Any], output_path: Path) -> None:
     """
     Write `data` as UTF-8 encoded, pretty-printed JSON to `output_path`, creating parent directories if necessary.
-    
+
     Parameters:
         data (Dict[str, Any]): The JSON-serializable object to write.
         output_path (Path): Destination file path where the JSON will be written; parent directories will be created if missing.
