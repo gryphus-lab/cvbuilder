@@ -410,12 +410,26 @@ def parse_cv_to_json(pdf_path: str):
                         )
 
                         # Consolidate assignment logic
-                        if part0_has_degree or degree_found:
+                        if part0_has_degree and not part1_has_degree:
+                            # Case 1: Degree is in sanitized_parts[0]
+                            entry["degree"] = sanitized_parts[0]
+                            entry["institution"] = (
+                                sanitized_parts[1] if len(sanitized_parts) > 1 else ""
+                            )
+                        elif part1_has_degree and not part0_has_degree:
+                            # Case 2: Degree is in sanitized_parts[1]
+                            entry["institution"] = sanitized_parts[0]
+                            entry["degree"] = (
+                                sanitized_parts[1] if len(sanitized_parts) > 1 else ""
+                            )
+                        elif degree_found:
+                            # Case 3: Degree found but neither part has degree detected
                             entry["degree"] = sanitized_parts[0]
                             entry["institution"] = (
                                 sanitized_parts[1] if len(sanitized_parts) > 1 else ""
                             )
                         else:
+                            # Case 4: No degree detected, assume institution comes first
                             entry["institution"] = sanitized_parts[0]
                             entry["degree"] = (
                                 sanitized_parts[1] if len(sanitized_parts) > 1 else ""
