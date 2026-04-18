@@ -193,8 +193,33 @@ class CVBuilder:
             <h1>{{ cv.personal_info.name }}</h1>
             <h2 class="title">{{ cv.personal_info.title }}</h2>
             <div class="contact-info">
-                {{ cv.personal_info.address }} | {{ cv.personal_info.phone }}<br>
-                <strong>Email:</strong> {{ cv.personal_info.email }}
+                {% set contact_parts = [] %}
+                {% if cv.personal_info.address %}
+                    {% set contact_parts = contact_parts + [cv.personal_info.address] %}
+                {% endif %}
+                {% if cv.personal_info.phone %}
+                    {% set contact_parts = contact_parts + [cv.personal_info.phone] %}
+                {% endif %}
+                {% if cv.personal_info.email %}
+                    {% set contact_parts = contact_parts + [cv.personal_info.email] %}
+                {% endif %}
+                {% if contact_parts %}
+                    {{ contact_parts | join(' | ') }}<br>
+                {% endif %}
+
+                {% set identity_parts = [] %}
+                {% if cv.personal_info.date_of_birth %}
+                    {% set identity_parts = identity_parts + ['DOB: ' ~ cv.personal_info.date_of_birth] %}
+                {% endif %}
+                {% if cv.personal_info.nationality %}
+                    {% set identity_parts = identity_parts + ['Nationality: ' ~ cv.personal_info.nationality] %}
+                {% endif %}
+                {% if cv.personal_info.permit %}
+                    {% set identity_parts = identity_parts + ['Permit: ' ~ cv.personal_info.permit] %}
+                {% endif %}
+                {% if identity_parts %}
+                    {{ identity_parts | join(' | ') }}
+                {% endif %}
             </div>
         </div>
         {% if photo %}
@@ -261,14 +286,11 @@ class CVBuilder:
 
     <!-- COMPETENCIES -->
     <h2 class="section">COMPETENCIES AND SKILLS</h2>
-    {% for category, skills in cv.competencies_and_skills.items() %}
-    <div class="category">{{ category }}</div>
     <ul>
-    {% for skill in skills %}
-        <li>{{ skill }}</li>
+    {% for category, skills in cv.competencies_and_skills.items() %}
+    <li><span class="category">{{ category }}:</span> {{ skills | join(", ") }}</li>
     {% endfor %}
     </ul>
-    {% endfor %}
 
     <!-- VOLUNTEERING -->
     <h2 class="section">VOLUNTEERING</h2>

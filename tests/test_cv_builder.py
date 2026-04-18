@@ -214,6 +214,19 @@ def test_render_html_contains_contact_info(builder, sample_cv_data):
     assert "Berlin, Germany" in html
 
 
+def test_render_html_contains_personal_identity_info(builder, sample_cv_data):
+    """Extended personal info fields should be rendered in the header when present."""
+    sample_cv_data["personal_info"]["date_of_birth"] = "10.03.1985"
+    sample_cv_data["personal_info"]["nationality"] = "Swiss"
+    sample_cv_data["personal_info"]["permit"] = "C"
+
+    html = builder._render_html(sample_cv_data)
+
+    assert "DOB: 10.03.1985" in html
+    assert "Nationality: Swiss" in html
+    assert "Permit: C" in html
+
+
 def test_render_html_multiple_jobs(builder, sample_cv_data):
     """All professional experience entries must appear when the list has multiple items."""
     sample_cv_data["professional_experience"].append(
