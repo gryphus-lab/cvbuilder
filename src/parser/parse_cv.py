@@ -200,6 +200,49 @@ def _extract_permit(line: str) -> Optional[str]:
     return permit or None
 
 
+def _extract_header_language_entries(line: str) -> list[str] | None:
+    """
+    Extract language entries from a single header line.
+
+    Returns a list of parsed language entries when the line contains an explicit language label. Returns None when no header language content is detected.
+    """
+    match = re.search(r"(?i)\b(languages|sprache|sprachen)\b\s*[:\-–]?\s*(.+)$", line)
+    if not match:
+        return None
+
+    raw_value = match.group(2).strip()
+    if not raw_value:
+        return None
+
+    entries = [
+        final_sanitize(part.strip())
+        for part in re.split(r"[,;]", raw_value)
+        if part.strip()
+    ]
+    return [
+        entry for entry in entries if entry and LINKEDIN_KEYWORD not in entry.lower()
+    ]
+
+
+def _parse_header_languages(lines: list[str]) -> list[str]:
+    """
+    Scan the top of the document for header-style language declarations.
+
+    Stops when the first section header is encountered.
+    """
+    languages = []
+    for line in lines[:20]:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if _is_header(stripped):
+            break
+        extracted = _extract_header_language_entries(stripped)
+        if extracted:
+            languages.extend(extracted)
+    return languages
+
+
 def _is_standalone_date(text: str) -> bool:
     stripped = text.strip()
     parts = stripped.split(".")
@@ -215,11 +258,25 @@ def _is_standalone_date(text: str) -> bool:
 def _looks_like_address(line: str) -> bool:
     normalized = line.lower()
     tokens = normalized.split()
+
+    # Numeric street-number patterns like '123 Main Street' or 'Musterstrasse 10'
     for idx, token in enumerate(tokens[:-1]):
         next_token = tokens[idx + 1]
-        if (
-            any(c.isdigit() for c in token) and any(c.isalpha() for c in next_token)
-        ) or (any(c.isalpha() for c in token) and any(c.isdigit() for c in next_token)):
+        if any(c.isdigit() for c in token) and any(c.isalpha() for c in next_token):
+            # Reject year/experience patterns like '25 years' or '14+ years'
+            if re.fullmatch(r"\d+\+?", token) and next_token in (
+                "years",
+                "year",
+                "yrs",
+                "yr",
+                "months",
+                "month",
+                "days",
+                "day",
+                "of",
+                "in",
+            ):
+                continue
             return True
 
     address_keywords = (
@@ -231,9 +288,55 @@ def _looks_like_address(line: str) -> bool:
         " blvd",
         " lane",
         "strasse",
+        "address:",
     )
     if any(keyword in normalized for keyword in address_keywords):
         return True
+
+    # Common header-style city / country or city, region patterns without a street number.
+    if "," in line:
+        if any(
+            marker in normalized
+            for marker in (
+                "@",
+                "linkedin.com",
+                "http://",
+                "https://",
+                "www.",
+                "date of birth",
+                "nationality:",
+                "permit:",
+            )
+        ):
+            return False
+        if len(line) > 60:
+            return False
+        segments = [seg.strip() for seg in normalized.split(",") if seg.strip()]
+        if 2 <= len(segments) <= 3:
+            bad_terms = (
+                "engineer",
+                "manager",
+                "developer",
+                "consultant",
+                "architect",
+                "director",
+                "company",
+                "corp",
+                "inc",
+                "llc",
+                "solutions",
+                "experience",
+                "years",
+                "year",
+                "immersion",
+                "seniority",
+                "transformation",
+                "leader",
+            )
+            if not any(term in normalized for term in bad_terms):
+                if all(re.search(r"[a-z]", seg) for seg in segments):
+                    return True
+
     if normalized.startswith("st ") or normalized.endswith(" st"):
         return True
     return False
@@ -243,7 +346,8 @@ def _extract_address(line: str) -> Optional[str]:
     """
     Heuristically detects whether a single line contains an address-like string and returns it if so.
 
-    Performs lightweight checks: requires at least one digit, excludes lines that look like a "Date of Birth", a standalone dd.mm.yyyy date, or a simple phone-like pattern, and requires an address-like pattern (e.g., number + word or common street keywords). If the line passes these heuristics the trimmed line is returned.
+    Performs lightweight checks: excludes lines that look like a "Date of Birth", a standalone dd.mm.yyyy date, or a simple phone-like pattern, rejects language header lines and URL/contact lines, and accepts either numeric address patterns or short location-like header addresses.
+    Also supports combined header rows of the form `address | phone | email`.
 
     Parameters:
         line (str): A single OCR/text line to inspect.
@@ -251,10 +355,24 @@ def _extract_address(line: str) -> Optional[str]:
     Returns:
         Optional[str]: The trimmed input line when it appears to be an address, `None` otherwise.
     """
+    if _extract_header_language_entries(line):
+        return None
+
+    if re.search(r"(?i)\b(linkedin|http[s]?://|www\.)\b", line):
+        return None
+
+    if "|" in line:
+        parts = [part.strip() for part in line.split("|") if part.strip()]
+        if len(parts) >= 3:
+            address_part = parts[0]
+            phone_part = next((p for p in parts[1:] if _extract_phone(p)), None)
+            email_part = next((p for p in parts[1:] if _extract_email(p)), None)
+            if address_part and phone_part and email_part:
+                return address_part
+
     if (
-        any(c.isdigit() for c in line)
-        and "Date of Birth" not in line
-        and not re.search(r"\+\d{2}\s?\d{2}", line)  # Skip phone numbers
+        "Date of Birth" not in line
+        and not re.search(r"\+\d{2}\s?\d{2}", line)  # Skip obvious phone numbers
         and not _is_standalone_date(line)
         and _looks_like_address(line)
     ):
@@ -863,6 +981,7 @@ def parse_cv_to_json(pdf_path: str):
 
     # === PERSONAL INFO - parsed once from the very top ===
     cv_data["personal_info"] = _parse_personal_info(lines)
+    header_languages = _parse_header_languages(lines)
 
     # Define section handler mapping
     section_handlers = {
@@ -894,6 +1013,12 @@ def parse_cv_to_json(pdf_path: str):
                 )
         else:
             i += 1
+
+    # Preserve any header language entries when no dedicated LANGUAGES section is present.
+    if header_languages:
+        for lang in header_languages:
+            if lang not in cv_data["languages"]:
+                cv_data["languages"].append(lang)
 
     return cv_data
 

@@ -17,6 +17,7 @@ from src.parser.parse_cv import (
     _extract_address,
     _extract_name_and_title,
     _parse_personal_info,
+    _parse_header_languages,
     _parse_education_entry,
     _handle_profile_section,
     _handle_strategic_impact_section,
@@ -114,6 +115,26 @@ def test_parse_cv_to_json_full_flow(mock_ocr, mock_pdf_conv):
     assert len(result["professional_experience"]) == 1
     assert result["professional_experience"][0]["company"] == "Acme"
     assert "Native" in result["languages"][0]
+
+
+@patch("src.parser.parse_cv.convert_from_path")
+@patch("src.parser.parse_cv.pt.image_to_string")
+def test_parse_cv_to_json_extracts_header_languages_when_no_section(
+    mock_ocr, mock_pdf_conv
+):
+    mock_ocr.return_value = (
+        "John Doe\n"
+        "Senior Analyst\n"
+        "Languages: English (Native), German (B2)\n"
+        "PROFILE\n"
+        "Experienced in cloud and AI.\n"
+    )
+    mock_pdf_conv.return_value = [MagicMock()]
+    with patch("src.parser.parse_cv.Path.write_text"):
+        result = parse_cv_to_json("dummy.pdf")
+
+    assert "English (Native)" in result["languages"]
+    assert "German (B2)" in result["languages"]
 
 
 def test_save_to_json(tmp_path):
@@ -734,6 +755,28 @@ def test_extract_address_phone_like_line_excluded():
     assert result is None
 
 
+def test_extract_address_linkedin_line_excluded():
+    result = _extract_address("LinkedIn: linkedin.com/in/abhaysingh1978")
+    assert result is None
+
+
+def test_extract_address_ignores_profile_sentences():
+    result = _extract_address(
+        "Transformation leader with 25 years of experience, including 20 years of seniority in the DACH"
+    )
+    assert result is None
+
+
+def test_extract_address_city_country():
+    result = _extract_address("Berlin, Germany")
+    assert result == "Berlin, Germany"
+
+
+def test_extract_address_with_address_label():
+    result = _extract_address("Address: Berlin, Germany")
+    assert result == "Address: Berlin, Germany"
+
+
 ## --- Unit Tests for _extract_name_and_title ---
 
 
@@ -813,6 +856,18 @@ def test_parse_personal_info_extracts_dob():
     assert info["date_of_birth"] == "10.05.1982"
 
 
+def test_parse_personal_info_extracts_address_from_combined_header():
+    lines = [
+        "Abhay Singh",
+        "Principal Solution Architect",
+        "Zürich, Switzerland | +41793642780 | abhay.singh@pm.me",
+    ]
+    info = _parse_personal_info(lines)
+    assert info["address"] == "Zürich, Switzerland"
+    assert info["phone"] == "+41793642780"
+    assert info["email"] == "abhay.singh@pm.me"
+
+
 def test_parse_personal_info_extracts_nationality():
     lines = ["Chris Tan", "Manager", "Nationality: Singaporean"]
     info = _parse_personal_info(lines)
@@ -823,6 +878,17 @@ def test_parse_personal_info_extracts_permit():
     lines = ["Dana Wolf", "CTO", "Permit: C"]
     info = _parse_personal_info(lines)
     assert info["permit"] == "C"
+
+
+def test_parse_personal_info_skips_header_language_line_for_address():
+    lines = [
+        "Emily Stone",
+        "Consultant",
+        "Languages: English (Native), German (B1/B2 — 14+ years Swiss immersion)",
+    ]
+    info = _parse_personal_info(lines)
+    assert info.get("address") is None
+    assert any("English" in item for item in _parse_header_languages(lines))
 
 
 def test_parse_personal_info_returns_dict():
