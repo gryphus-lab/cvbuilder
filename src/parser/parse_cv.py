@@ -15,6 +15,8 @@ ACHIEVEMENT_KEYWORDS = CONFIG["achievement_keywords"]
 SKILL_KEYWORDS = CONFIG["skill_keywords"]
 STRATEGIC_KEYWORDS = CONFIG["strategic_keywords"]
 
+LINKEDIN_KEYWORD = "linkedin.com"
+
 
 def _is_header(line: str) -> bool:
     clean = line.upper().strip().rstrip(":")
@@ -53,7 +55,7 @@ def final_sanitize(text: str) -> str:
         text = re.sub(double_pattern, r"\1", text, flags=re.IGNORECASE)
 
     text = re.sub(r"\s+", " ", text)
-    text = re.sub(r"\s*[:]\s*", ": ", text)
+    text = re.sub(r"\s*:\s*", ": ", text)
     text = re.sub(r"\bNativ\b", "Native", text)
 
     return text.strip()
@@ -400,7 +402,7 @@ def parse_cv_to_json(pdf_path: str):
                         sanitized_text = final_sanitize(line_without_bullet)
                         if (
                             sanitized_text
-                            and "linkedin.com" not in sanitized_text.lower()
+                            and LINKEDIN_KEYWORD not in sanitized_text.lower()
                         ):
                             if current:
                                 languages.append(current)
@@ -409,7 +411,7 @@ def parse_cv_to_json(pdf_path: str):
                         sanitized_text = final_sanitize(original_line)
                         if (
                             sanitized_text
-                            and "linkedin.com" not in sanitized_text.lower()
+                            and LINKEDIN_KEYWORD not in sanitized_text.lower()
                         ):
                             if current:
                                 current += " " + sanitized_text
@@ -421,7 +423,10 @@ def parse_cv_to_json(pdf_path: str):
                 # Treat each non-empty line as a separate language entry
                 for content_line in content:
                     sanitized_line = final_sanitize(content_line)
-                    if sanitized_line and "linkedin.com" not in sanitized_line.lower():
+                    if (
+                        sanitized_line
+                        and LINKEDIN_KEYWORD not in sanitized_line.lower()
+                    ):
                         languages.append(sanitized_line)
 
             cv_data["languages"] = languages
