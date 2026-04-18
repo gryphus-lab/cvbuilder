@@ -5,17 +5,10 @@ from typing import Any, Optional
 import pytesseract as pt
 from pdf2image import convert_from_path
 
-# Load configuration from package resources
-try:
-    # Python 3.9+
-    from importlib.resources import files
-    config_text = files(__package__).joinpath("config.json").read_text(encoding="utf-8")
-except (ImportError, AttributeError):
-    # Python 3.7-3.8 fallback
-    from importlib.resources import read_text
-    config_text = read_text(__package__, "config.json")
-
-CONFIG = json.loads(config_text)
+# Load configuration from project root
+config_path = Path(__file__).parent.parent.parent / "config.json"
+with open(config_path, encoding="utf-8") as f:
+    CONFIG = json.load(f)
 
 SECTION_HEADERS = CONFIG["section_headers"]
 ACHIEVEMENT_KEYWORDS = CONFIG["achievement_keywords"]
@@ -119,9 +112,7 @@ def _extract_phone(line: str) -> Optional[str]:
     """Extract phone number from a line."""
     # Match international E.164-style phone numbers with explicit prefix (+ or 00)
     # Only match strings that start with + or 00, followed by digits with optional separators
-    phone_match = re.search(
-        r"(?:\+|00)[\d\s\-().]{7,18}", line
-    )
+    phone_match = re.search(r"(?:\+|00)[\d\s\-().]{7,18}", line)
     if phone_match:
         # Normalize by removing spaces, dashes, parentheses, and dots
         phone = phone_match.group(0)
@@ -409,7 +400,9 @@ def _handle_profile_section(lines: list[str], start_idx: int) -> tuple[str, int]
     return final_sanitize("\n".join(profile_lines)), next_idx
 
 
-def _handle_strategic_impact_section(lines: list[str], start_idx: int) -> tuple[list[str], int]:
+def _handle_strategic_impact_section(
+    lines: list[str], start_idx: int
+) -> tuple[list[str], int]:
     """
     Handle the strategic impact section.
 
@@ -425,7 +418,9 @@ def _handle_strategic_impact_section(lines: list[str], start_idx: int) -> tuple[
     return bullets, next_idx
 
 
-def _handle_education_section(lines: list[str], start_idx: int) -> tuple[list[dict], int]:
+def _handle_education_section(
+    lines: list[str], start_idx: int
+) -> tuple[list[dict], int]:
     """
     Handle the education section.
 
@@ -447,11 +442,15 @@ def _handle_education_section(lines: list[str], start_idx: int) -> tuple[list[di
         "PhD",
         "Doctorate",
     ]
-    education_entries = [_parse_education_entry(item, degree_keywords) for item in content]
+    education_entries = [
+        _parse_education_entry(item, degree_keywords) for item in content
+    ]
     return education_entries, next_idx
 
 
-def _handle_languages_section(lines: list[str], start_idx: int) -> tuple[list[str], int]:
+def _handle_languages_section(
+    lines: list[str], start_idx: int
+) -> tuple[list[str], int]:
     """
     Handle the languages section.
 
@@ -498,7 +497,9 @@ def _handle_languages_section(lines: list[str], start_idx: int) -> tuple[list[st
     return languages, next_idx
 
 
-def _handle_competencies_and_skills_section(lines: list[str], start_idx: int) -> tuple[dict, int]:
+def _handle_competencies_and_skills_section(
+    lines: list[str], start_idx: int
+) -> tuple[dict, int]:
     """
     Handle the competencies and skills section.
 
@@ -516,14 +517,14 @@ def _handle_competencies_and_skills_section(lines: list[str], start_idx: int) ->
         if ":" in block:
             cat, vals = block.split(":", 1)
             skills_dict[final_sanitize(cat.strip())] = [
-                final_sanitize(v.strip())
-                for v in re.split(r"[;,]", vals)
-                if v.strip()
+                final_sanitize(v.strip()) for v in re.split(r"[;,]", vals) if v.strip()
             ]
     return skills_dict, next_idx
 
 
-def _handle_generic_fallback_section(lines: list[str], start_idx: int, _canonical_section: str) -> tuple[list[str], int]:
+def _handle_generic_fallback_section(
+    lines: list[str], start_idx: int, _canonical_section: str
+) -> tuple[list[str], int]:
     """
     Handle generic sections using fallback logic.
 
@@ -602,10 +603,14 @@ def parse_cv_to_json(pdf_path: str):
 
             # Route to appropriate handler
             if canonical_section in section_handlers:
-                cv_data[canonical_section], i = section_handlers[canonical_section](lines, i)
+                cv_data[canonical_section], i = section_handlers[canonical_section](
+                    lines, i
+                )
             else:
                 # Generic fallback for other configured sections
-                cv_data[canonical_section], i = _handle_generic_fallback_section(lines, i, canonical_section)
+                cv_data[canonical_section], i = _handle_generic_fallback_section(
+                    lines, i, canonical_section
+                )
         else:
             i += 1
 
