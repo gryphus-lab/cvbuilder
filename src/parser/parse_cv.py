@@ -242,6 +242,10 @@ def _extract_name_and_title(lines: list[str], common_headers: set) -> tuple[str,
             or any(line_upper.startswith(header) for header in common_headers)
         )
 
+        # Stop scanning if we hit a section header
+        if is_heading:
+            break
+
         if (
             stripped
             and not is_heading
