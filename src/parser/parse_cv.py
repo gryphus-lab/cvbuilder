@@ -150,11 +150,11 @@ def _extract_phone(line: str) -> Optional[str]:
 def _extract_dob(line: str) -> Optional[str]:
     """
     Extract a date-of-birth string in digit-and-dot format from a single line of text.
-    
+
     Returns:
         The matched date string (digits and dots, e.g. "01.01.1990" or "01.01"), or `None` if no date-of-birth pattern is found.
     """
-    dob_match = re.search(r"Date of Birth:\s*([\d.]+)", line)
+    dob_match = re.search(r"Date of Birth:\s*(\d{1,2}\.\d{1,2}\.\d{2,4})", line)
     return dob_match.group(1) if dob_match else None
 
 

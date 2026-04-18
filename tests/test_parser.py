@@ -746,7 +746,7 @@ def test_extract_name_and_title_basic():
 
 def test_extract_name_and_title_skips_email_line():
     lines = ["john@example.com", "Jane Smith", "Data Scientist"]
-    name, title = _extract_name_and_title(lines, set(SECTION_HEADERS.keys()))
+    name, _ = _extract_name_and_title(lines, set(SECTION_HEADERS.keys()))
     assert name == "Jane Smith"
 
 
@@ -782,7 +782,7 @@ def test_extract_name_and_title_only_one_qualifying_line():
 
 def test_extract_name_and_title_skips_permit_line():
     lines = ["Permit: B", "Maria Garcia", "Product Manager"]
-    name, title = _extract_name_and_title(lines, set(SECTION_HEADERS.keys()))
+    name, _ = _extract_name_and_title(lines, set(SECTION_HEADERS.keys()))
     assert name == "Maria Garcia"
 
 
