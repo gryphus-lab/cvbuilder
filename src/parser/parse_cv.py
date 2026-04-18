@@ -22,8 +22,10 @@ def _is_header(line: str) -> bool:
     """
     Determine whether a text line corresponds to a configured section header.
     
+    The line is cleaned by trimming whitespace, removing a single trailing colon if present, and uppercasing before checking against SECTION_HEADERS.
+    
     Returns:
-        True if the uppercased, trimmed line with any trailing colon removed matches an entry in SECTION_HEADERS, False otherwise.
+        `True` if the cleaned line matches an entry in SECTION_HEADERS, `False` otherwise.
     """
     clean = line.upper().strip().rstrip(":")
     return clean in SECTION_HEADERS
@@ -121,7 +123,9 @@ def _extract_email(line: str) -> Optional[str]:
 
 def _extract_phone(line: str) -> Optional[str]:
     """
-    Extracts an international phone number from a text line and returns it in E.164 format.
+    Extract an international phone number from a text line and return it in E.164 format.
+    
+    Scans the input for a number that begins with a leading `+` or `00`, normalizes common separators (spaces, dashes, parentheses, dots), and validates the result as an international E.164 number (leading `+` followed by 7–15 digits).
     
     Parameters:
         line (str): Text to scan for a phone number.
@@ -174,10 +178,10 @@ def _extract_nationality(line: str) -> Optional[str]:
 
 def _extract_permit(line: str) -> Optional[str]:
     """
-    Extracts the value following a "Permit:" label from a single line of text.
+    Extracts the text following a 'Permit:' label on the given line.
     
     Returns:
-        permit (str): The captured permit text with surrounding whitespace removed, or None if the line does not contain a "Permit:" label.
+        permit (str): The captured permit text with surrounding whitespace removed, or None if the line does not contain a 'Permit:' label.
     """
     permit_match = re.search(r"Permit:\s*(.+)$", line)
     return permit_match.group(1).strip() if permit_match else None
@@ -185,20 +189,15 @@ def _extract_permit(line: str) -> Optional[str]:
 
 def _extract_address(line: str) -> Optional[str]:
     """
-    Detects and returns an address-like string from a single line of text.
+    Determine if a line contains an address-like value.
     
-    Evaluates the line for address characteristics and returns the trimmed line when:
-    - it contains at least one digit,
-    - it is not a "Date of Birth" line,
-    - it does not match common phone-like patterns (e.g., "+CC NN"),
-    - it is not a standalone date in dd.mm.yyyy format,
-    - and it contains an address-like pattern (number + word or common street keywords such as St, Street, Ave, Road, Blvd, Lane, Strasse).
+    Checks that the line contains at least one digit, is not a "Date of Birth" line, does not match a common phone-like pattern (e.g., "+CC NN"), is not a standalone date in `dd.mm.yyyy` format, and contains an address-like pattern (number + word or common street keywords such as `St`, `Street`, `Ave`, `Avenue`, `Rd`, `Road`, `Blvd`, `Lane`, `Strasse`). If all conditions are met the trimmed input is returned.
     
     Parameters:
-        line (str): A single line of OCR/text to inspect for an address.
+        line (str): A single line of OCR/text to inspect.
     
     Returns:
-        Optional[str]: The trimmed input line if it appears to be an address, `None` otherwise.
+        Optional[str]: The trimmed line if it appears to be an address, `None` otherwise.
     """
     if (
         any(c.isdigit() for c in line)
@@ -465,14 +464,14 @@ def _parse_education_entry(item: str, degree_keywords: list[str]) -> dict[str, s
 
 def _handle_profile_section(lines: list[str], start_idx: int) -> tuple[str, int]:
     """
-    Extract and sanitize the text content of the Profile section starting at the given header index.
+    Collects and returns the sanitized text for the Profile section starting after the given header.
     
     Parameters:
         lines (list[str]): OCR-extracted lines from the document.
-        start_idx (int): Index of the Profile section header in `lines`; parsing begins after this index.
+        start_idx (int): Index of the Profile section header in `lines`; parsing begins at the line after this index.
     
     Returns:
-        tuple[str, int]: The sanitized profile text and the index of the next line after the section.
+        tuple[str, int]: A tuple where the first element is the sanitized profile text and the second is the index of the first line after the section.
     """
     profile_lines, next_idx = _parse_generic_section(lines, start_idx)
     return final_sanitize("\n".join(profile_lines)), next_idx
@@ -480,11 +479,16 @@ def _handle_profile_section(lines: list[str], start_idx: int) -> tuple[str, int]
 
 def _handle_strategic_impact_section(lines: list[str], start_idx: int) -> tuple[list[str], int]:
     """
-    Extract strategic impact bullet items from the section starting at start_idx.
+    Extract sanitized strategic-impact bullet points from the section beginning at start_idx.
+    
+    Parameters:
+        lines (list[str]): OCR-extracted lines of the document.
+        start_idx (int): Index of the section header line where parsing should start.
     
     Returns:
-        bullets (list[str]): Sanitized strategic impact bullets extracted from the section.
-        next_idx (int): Index of the line immediately after the parsed section.
+        tuple[list[str], int]:
+            bullets: Sanitized strategic impact bullets extracted from the section.
+            next_idx: Index of the line immediately after the parsed section.
     """
     content, next_idx = _parse_generic_section(lines, start_idx)
     _, bullets = semantic_bullet_split(" ".join(content), STRATEGIC_KEYWORDS)
@@ -570,12 +574,16 @@ def _handle_languages_section(lines: list[str], start_idx: int) -> tuple[list[st
 
 def _handle_competencies_and_skills_section(lines: list[str], start_idx: int) -> tuple[dict, int]:
     """
-    Parse the Competencies & Skills section and return a mapping from category to a list of skills.
+    Extract competencies and skills into a mapping of category to skill lists from the section starting at start_idx.
     
-    Collects the section content following start_idx and extracts blocks of the form "Category: value1, value2"; categories and values are sanitized. Blocks without a colon are ignored.
+    Collects consecutive lines for the section, extracts keyword-led blocks, and for each block containing a colon interprets the left side as the category and the right side as comma/ or semicolon-separated skill values. Category names and individual skill values are sanitized; blocks without a colon are ignored.
+    
+    Parameters:
+        lines (list[str]): All OCR lines from the document.
+        start_idx (int): Index of the first line after the section header.
     
     Returns:
-        tuple[dict, int]: A tuple where the first element is a dict mapping category (str) to a list of skill strings, and the second element is the index of the line after the section.
+        tuple[dict, int]: A tuple where the first element maps sanitized category names (str) to lists of sanitized skill strings, and the second element is the index of the first line after the section.
     """
     content, next_idx = _parse_generic_section(lines, start_idx)
     _, skill_blocks = semantic_bullet_split(" ".join(content), SKILL_KEYWORDS)
