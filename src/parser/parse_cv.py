@@ -441,6 +441,16 @@ def _looks_like_contact_info(stripped: str) -> bool:
     return bool(re.search(r"@|Date of Birth|Nationality|Permit|\+\d{2}", stripped))
 
 
+def _is_name_title_candidate(stripped: str, common_headers: set) -> bool:
+    """Determine whether a stripped line is a valid name/title candidate."""
+    return (
+        bool(stripped)
+        and not _is_line_heading(stripped, common_headers)
+        and not _extract_header_language_entries(stripped)
+        and not _looks_like_contact_info(stripped)
+    )
+
+
 def _extract_name_and_title(lines: list[str], common_headers: set) -> tuple[str, str]:
     """
     Select the candidate's name and title from the top OCR lines.
@@ -459,28 +469,21 @@ def _extract_name_and_title(lines: list[str], common_headers: set) -> tuple[str,
 
     for idx, line in enumerate(lines[:5]):
         stripped = line.strip()
-        is_heading = _is_line_heading(stripped, common_headers)
-
-        # If we've already captured name/title, stop at section headers
-        if is_heading and name and title:
-            break
-
-        # Skip leading headers until we have a candidate name/title
-        if is_heading:
-            continue
-
-        # Skip language header lines
-        if _extract_header_language_entries(stripped):
-            continue
-
-        if stripped and not _looks_like_contact_info(stripped):
-            # First line that doesn't look like contact info or header is likely the name
-            if not name:
-                name = stripped
-            elif not title and idx > 0:
-                # Second such line is likely the title/role
-                title = stripped
+        if _is_line_heading(stripped, common_headers):
+            if name and title:
                 break
+            continue
+
+        if not _is_name_title_candidate(stripped, common_headers):
+            continue
+
+        if not name:
+            name = stripped
+            continue
+
+        if not title and idx > 0:
+            title = stripped
+            break
 
     return name, title
 
