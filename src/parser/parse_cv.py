@@ -1,7 +1,7 @@
 import re
 import json
 from pathlib import Path
-from typing import Dict, Any, List, Tuple, Optional
+from typing import Any, Optional
 import pytesseract as pt
 from pdf2image import convert_from_path
 
@@ -111,7 +111,10 @@ def _extract_email(line: str) -> Optional[str]:
 def _extract_phone(line: str) -> Optional[str]:
     """Extract phone number from a line."""
     # Match international E.164-style phone numbers with flexible separators
-    phone_match = re.search(r"(?:\+[\d]{1,3})?[\d\s\-().]{7,18}", line)
+    # Lookahead ensures at least 7-15 digits are present before normalization
+    phone_match = re.search(
+        r"(?=(?:.*\d){7,15})(?:\+[\d]{1,3})?[\d\s\-().]{7,18}", line
+    )
     if phone_match:
         # Normalize by removing spaces, dashes, and parentheses while preserving the leading +
         phone = phone_match.group(0)
@@ -158,16 +161,16 @@ def _extract_address(line: str) -> Optional[str]:
     return None
 
 
-def _extract_name_and_title(lines: List[str], common_headers: set) -> Tuple[str, str]:
+def _extract_name_and_title(lines: list[str], common_headers: set) -> tuple[str, str]:
     """
     Extract name and title from the first few lines of the CV.
 
     Parameters:
-        lines (List[str]): OCR'd lines from the document.
+        lines (list[str]): OCR'd lines from the document.
         common_headers (set): Set of common section headers to skip.
 
     Returns:
-        Tuple[str, str]: A tuple of (name, title).
+        tuple[str, str]: A tuple of (name, title).
     """
     name = ""
     title = ""
@@ -199,17 +202,17 @@ def _extract_name_and_title(lines: List[str], common_headers: set) -> Tuple[str,
     return name, title
 
 
-def _parse_personal_info(lines: List[str]) -> Dict[str, str]:
+def _parse_personal_info(lines: list[str]) -> dict[str, str]:
     """
     Extract personal contact and identity fields from the top of OCR'd lines.
 
     Scans up to the first 20 non-empty OCR lines and extracts common personal info fields using regex heuristics. Detected keys may include: `name`, `title`, `email`, `phone`, `date_of_birth`, `nationality`, `permit`, and `address`. The `address` is the first line that looks address-like (contains a digit) and is not a "Date of Birth" line.
 
     Parameters:
-        lines (List[str]): OCR'd lines from the document.
+        lines (list[str]): OCR'd lines from the document.
 
     Returns:
-        info (Dict[str, str]): A dictionary of extracted fields; only keys for which a match was found are present.
+        info (dict[str, str]): A dictionary of extracted fields; only keys for which a match was found are present.
     """
     info = {"name": "", "title": ""}
 
@@ -300,7 +303,7 @@ def _parse_experience(lines: list[str], start_idx: int) -> tuple[list[dict], int
     return jobs, i
 
 
-def _parse_generic_section(lines: List[str], start_idx: int) -> Tuple[List[str], int]:
+def _parse_generic_section(lines: list[str], start_idx: int) -> tuple[list[str], int]:
     items = []
     i = start_idx + 1
     while i < len(lines) and not _is_header(lines[i]):
@@ -309,6 +312,76 @@ def _parse_generic_section(lines: List[str], start_idx: int) -> Tuple[List[str],
             items.append(line)
         i += 1
     return items, i
+
+
+def _parse_education_entry(item: str, degree_keywords: list[str]) -> dict[str, str]:
+    """
+    Parse a single education entry and extract institution and degree.
+
+    Parameters:
+        item (str): The raw education line to parse.
+        degree_keywords (list[str]): List of keywords to detect degrees.
+
+    Returns:
+        dict[str, str]: Dictionary with 'institution' and 'degree' keys.
+    """
+    sanitized = final_sanitize(item)
+    entry = {"institution": "", "degree": ""}
+
+    # Try to detect degree keywords
+    degree_found = ""
+    for deg_kw in degree_keywords:
+        if deg_kw in item:
+            degree_found = sanitized
+            break
+
+    # Try to split by common separators
+    if "," in item:
+        parts = item.split(",", 1)
+        sanitized_parts = [final_sanitize(p) for p in parts]
+        # Check which part contains the degree keyword
+        part0_has_degree = any(
+            deg_kw in sanitized_parts[0] for deg_kw in degree_keywords
+        )
+        part1_has_degree = len(sanitized_parts) > 1 and any(
+            deg_kw in sanitized_parts[1] for deg_kw in degree_keywords
+        )
+
+        # Consolidate assignment logic
+        if part0_has_degree and not part1_has_degree:
+            # Case 1: Degree is in sanitized_parts[0]
+            entry["degree"] = sanitized_parts[0]
+            entry["institution"] = (
+                sanitized_parts[1] if len(sanitized_parts) > 1 else ""
+            )
+        elif part1_has_degree and not part0_has_degree:
+            # Case 2: Degree is in sanitized_parts[1]
+            entry["institution"] = sanitized_parts[0]
+            entry["degree"] = sanitized_parts[1] if len(sanitized_parts) > 1 else ""
+        elif degree_found:
+            # Case 3: Degree found but neither part has degree detected
+            entry["degree"] = sanitized_parts[0]
+            entry["institution"] = (
+                sanitized_parts[1] if len(sanitized_parts) > 1 else ""
+            )
+        else:
+            # Case 4: No degree detected, assume institution comes first
+            entry["institution"] = sanitized_parts[0]
+            entry["degree"] = sanitized_parts[1] if len(sanitized_parts) > 1 else ""
+    elif " - " in item:
+        parts = item.split(" - ", 1)
+        entry["institution"] = final_sanitize(parts[0])
+        entry["degree"] = final_sanitize(parts[1]) if len(parts) > 1 else ""
+    elif degree_found:
+        # No separator found and degree detected
+        entry["degree"] = sanitized
+    elif "Institute" in item or "University" in item or "College" in item:
+        entry["institution"] = sanitized
+    else:
+        # Fallback: use the whole line as institution
+        entry["institution"] = sanitized
+
+    return entry
 
 
 def parse_cv_to_json(pdf_path: str):
@@ -370,11 +443,12 @@ def parse_cv_to_json(pdf_path: str):
                 cv_data["professional_experience"], i = _parse_experience(lines, i)
             elif canonical_section == "strategic_impact":
                 content, i = _parse_generic_section(lines, i)
-                _, bullets = semantic_bullet_split(" ".join(content), STRATEGIC_KEYWORDS)
+                _, bullets = semantic_bullet_split(
+                    " ".join(content), STRATEGIC_KEYWORDS
+                )
                 cv_data["strategic_impact"] = bullets
             elif canonical_section == "education":
                 content, i = _parse_generic_section(lines, i)
-                edu = []
                 degree_keywords = [
                     "Bachelor",
                     "Master",
@@ -385,70 +459,9 @@ def parse_cv_to_json(pdf_path: str):
                     "PhD",
                     "Doctorate",
                 ]
-
-                for item in content:
-                    sanitized = final_sanitize(item)
-                    entry = {"institution": "", "degree": ""}
-
-                    # Try to detect degree keywords
-                    degree_found = ""
-                    for deg_kw in degree_keywords:
-                        if deg_kw in item:
-                            degree_found = sanitized
-                            break
-
-                    # Try to split by common separators
-                    if "," in item:
-                        parts = item.split(",", 1)
-                        sanitized_parts = [final_sanitize(p) for p in parts]
-                        # Check which part contains the degree keyword
-                        part0_has_degree = any(
-                            deg_kw in sanitized_parts[0] for deg_kw in degree_keywords
-                        )
-                        part1_has_degree = len(sanitized_parts) > 1 and any(
-                            deg_kw in sanitized_parts[1] for deg_kw in degree_keywords
-                        )
-
-                        # Consolidate assignment logic
-                        if part0_has_degree and not part1_has_degree:
-                            # Case 1: Degree is in sanitized_parts[0]
-                            entry["degree"] = sanitized_parts[0]
-                            entry["institution"] = (
-                                sanitized_parts[1] if len(sanitized_parts) > 1 else ""
-                            )
-                        elif part1_has_degree and not part0_has_degree:
-                            # Case 2: Degree is in sanitized_parts[1]
-                            entry["institution"] = sanitized_parts[0]
-                            entry["degree"] = (
-                                sanitized_parts[1] if len(sanitized_parts) > 1 else ""
-                            )
-                        elif degree_found:
-                            # Case 3: Degree found but neither part has degree detected
-                            entry["degree"] = sanitized_parts[0]
-                            entry["institution"] = (
-                                sanitized_parts[1] if len(sanitized_parts) > 1 else ""
-                            )
-                        else:
-                            # Case 4: No degree detected, assume institution comes first
-                            entry["institution"] = sanitized_parts[0]
-                            entry["degree"] = (
-                                sanitized_parts[1] if len(sanitized_parts) > 1 else ""
-                            )
-                    elif " - " in item:
-                        parts = item.split(" - ", 1)
-                        entry["institution"] = final_sanitize(parts[0])
-                        entry["degree"] = final_sanitize(parts[1]) if len(parts) > 1 else ""
-                    elif degree_found:
-                        # No separator found and degree detected
-                        entry["degree"] = sanitized
-                    elif "Institute" in item or "University" in item or "College" in item:
-                        entry["institution"] = sanitized
-                    else:
-                        # Fallback: use the whole line as institution
-                        entry["institution"] = sanitized
-
-                    edu.append(entry)
-                cv_data["education"] = edu
+                cv_data["education"] = [
+                    _parse_education_entry(item, degree_keywords) for item in content
+                ]
             elif canonical_section == "languages":
                 content, i = _parse_generic_section(lines, i)
                 languages = []
@@ -497,7 +510,9 @@ def parse_cv_to_json(pdf_path: str):
                 cv_data["languages"] = languages
             elif canonical_section == "competencies_and_skills":
                 content, i = _parse_generic_section(lines, i)
-                _, skill_blocks = semantic_bullet_split(" ".join(content), SKILL_KEYWORDS)
+                _, skill_blocks = semantic_bullet_split(
+                    " ".join(content), SKILL_KEYWORDS
+                )
                 skills_dict = {}
                 for block in skill_blocks:
                     if ":" in block:
@@ -518,12 +533,12 @@ def parse_cv_to_json(pdf_path: str):
     return cv_data
 
 
-def save_to_json(data: Dict[str, Any], output_path: Path) -> None:
+def save_to_json(data: dict[str, Any], output_path: Path) -> None:
     """
     Write `data` as UTF-8 encoded, pretty-printed JSON to `output_path`, creating parent directories if necessary.
 
     Parameters:
-        data (Dict[str, Any]): The JSON-serializable object to write.
+        data (dict[str, Any]): The JSON-serializable object to write.
         output_path (Path): Destination file path where the JSON will be written; parent directories will be created if missing.
     """
     output_path.parent.mkdir(exist_ok=True, parents=True)
