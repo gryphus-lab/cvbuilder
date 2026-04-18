@@ -173,7 +173,12 @@ def _extract_nationality(line: str) -> Optional[str]:
 
 
 def _extract_permit(line: str) -> Optional[str]:
-    """Extract permit information from a line."""
+    """
+    Extracts the value following a "Permit:" label from a single line of text.
+    
+    Returns:
+        permit (str): The captured permit text with surrounding whitespace removed, or None if the line does not contain a "Permit:" label.
+    """
     permit_match = re.search(r"Permit:\s*(.+)$", line)
     return permit_match.group(1).strip() if permit_match else None
 
@@ -603,22 +608,22 @@ def _handle_generic_fallback_section(lines: list[str], start_idx: int, _canonica
 
 def parse_cv_to_json(pdf_path: str):
     """
-    Parse a CV PDF and extract structured resume data as a JSON-serializable dictionary.
-
+    Parse a curriculum vitae PDF and extract structured resume data.
+    
     Parameters:
-        pdf_path (str): Path to the PDF file containing the CV.
-
+        pdf_path (str): Filesystem path to the CV PDF.
+    
     Returns:
-        dict: A mapping with the following keys:
-            - personal_info (dict): Extracted contact and identity fields (e.g., email, phone, date_of_birth, nationality, permit, address) where available.
-            - profile (str): Profile/summary text.
-            - strategic_impact (list[str]): Extracted strategic-impact bullet items.
-            - professional_experience (list[dict]): List of job entries; each entry may include `title`, `company`, `location`, `dates`, `description`, and `achievements`.
-            - certificates_and_training (list[str]): Items from certificates and training section.
-            - education (list[dict]): Education entries, typically containing `institution` and optionally `degree`.
-            - languages (list[str]): Language lines grouped into items (filtered and sanitized).
-            - competencies_and_skills (dict): Mapping of skill categories to lists of sanitized skill values.
-            - volunteering (list[str]): Volunteering entries.
+        dict: JSON-serializable mapping with keys:
+            - personal_info (dict): Contact and identity fields found near the top of the CV (e.g., `name`, `title`, `email`, `phone`, `date_of_birth`, `nationality`, `permit`, `address`) when available.
+            - profile (str): Sanitized profile or summary text.
+            - strategic_impact (list[str]): Strategic-impact bullet items extracted from the matching section.
+            - professional_experience (list[dict]): Parsed job entries; each entry may include `title`, `company`, `location`, `dates`, `description`, and `achievements`.
+            - certificates_and_training (list[str]): Lines from certificates and training section.
+            - education (list[dict]): Education entries typically containing `institution` and optionally `degree`.
+            - languages (list[str]): Language entries grouped and sanitized (LinkedIn links filtered).
+            - competencies_and_skills (dict): Mapping of skill category to list of sanitized skill values.
+            - volunteering (list[str]): Volunteering entries from the CV.
     """
     images = convert_from_path(pdf_path, dpi=300)
     raw_text = "\n".join([pt.image_to_string(img, lang="deu+eng") for img in images])
