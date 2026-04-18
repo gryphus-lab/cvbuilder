@@ -151,11 +151,12 @@ def _parse_personal_info(lines: List[str]) -> Dict[str, str]:
     # Try to extract name from first non-empty line (before any detected fields)
     for idx, line in enumerate(lines[:5]):
         stripped = line.strip()
-        # Skip section headers (all-caps, ends with ':', or matches known headers)
+        # Skip section headers (matches known headers or obvious header patterns)
         line_upper = stripped.upper().rstrip(':')
         is_heading = (line_upper in COMMON_HEADERS or
-                      (stripped.isupper() and len(stripped.split()) <= 3) or
-                      stripped.endswith(':'))
+                      stripped.endswith(':') or
+                      any(word in COMMON_HEADERS for word in line_upper.split()) or
+                      any(line_upper.startswith(header) for header in COMMON_HEADERS))
 
         if stripped and not is_heading and not re.search(r'@|Date of Birth|Nationality|Permit|\+\d{2}', stripped):
             # First line that doesn't look like contact info or header is likely the name
