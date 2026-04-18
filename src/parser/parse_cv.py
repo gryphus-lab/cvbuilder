@@ -202,9 +202,15 @@ def _extract_permit(line: str) -> Optional[str]:
 
 def _extract_header_language_entries(line: str) -> list[str] | None:
     """
-    Extract language entries from a single header line.
-
-    Returns a list of parsed language entries when the line contains an explicit language label. Returns None when no header language content is detected.
+    Extracts language entries from a single header-like line.
+    
+    Detects explicit language header labels (`languages`, `sprache`, `sprachen`) followed by `:`/`-`/EN DASH or nothing, then parses the trailing content as comma- or semicolon-separated language entries. Rejects excessively long input lines, sanitizes each entry, and excludes entries that contain `linkedin.com`. Returns None when the line does not contain a language header or contains no parsable entries.
+    
+    Parameters:
+        line (str): A single line of text (typically OCR output) to inspect for a language header.
+    
+    Returns:
+        list[str] | None: A list of sanitized language entries when a language header is present; `None` if no header-language content is detected.
     """
     # Guard against excessively long OCR lines to reduce the risk of regex-based resource exhaustion.
     if len(line) > 1024:
@@ -232,9 +238,15 @@ def _extract_header_language_entries(line: str) -> list[str] | None:
 
 def _parse_header_languages(lines: list[str]) -> list[str]:
     """
-    Scan the top of the document for header-style language declarations.
-
-    Stops when the first section header is encountered.
+    Extract language declarations found in header-style lines near the start of the document.
+    
+    Scans at most the first 20 lines and stops when a section header is encountered, collecting any language entries declared in header-like lines (comma- or semicolon-separated).
+    
+    Parameters:
+        lines (list[str]): Lines of OCR/text from the document, in order from top to bottom.
+    
+    Returns:
+        list[str]: Sanitized language entries found in header lines, in the order they were encountered.
     """
     languages = []
     for line in lines[:20]:
@@ -250,6 +262,12 @@ def _parse_header_languages(lines: list[str]) -> list[str]:
 
 
 def _is_standalone_date(text: str) -> bool:
+    """
+    Determine whether the input is an exact date in the dd.mm.yyyy format.
+    
+    Returns:
+        `True` if the string consists of three dot-separated numeric parts with lengths 2, 2, and 4 (day, month, year), `False` otherwise.
+    """
     stripped = text.strip()
     parts = stripped.split(".")
     return (
@@ -262,6 +280,15 @@ def _is_standalone_date(text: str) -> bool:
 
 
 def _looks_like_address(line: str) -> bool:
+    """
+    Determine whether a text line likely represents a postal address.
+    
+    Parameters:
+        line (str): A single line of OCR/extracted text to evaluate for address-like structure.
+    
+    Returns:
+        bool: `True` if the line likely represents an address (street/number pattern, contains address keywords, short comma-separated city/region, or common address abbreviations), `False` otherwise.
+    """
     normalized = line.lower()
     tokens = normalized.split()
 
@@ -351,16 +378,12 @@ def _looks_like_address(line: str) -> bool:
 
 def _extract_address(line: str) -> Optional[str]:
     """
-    Heuristically detects whether a single line contains an address-like string and returns it if so.
-
-    Performs lightweight checks: excludes lines that look like a "Date of Birth", a standalone dd.mm.yyyy date, or a simple phone-like pattern, rejects language header lines and URL/contact lines, and accepts either numeric address patterns or short location-like header addresses.
-    Also supports combined header rows of the form `address | phone | email`.
-
-    Parameters:
-        line (str): A single OCR/text line to inspect.
-
+    Determine whether a line contains an address and return the address portion when found.
+    
+    Supports detection of short location/address lines and combined header rows in the form `address | phone | email` (returns the leftmost address part when phone and email are present).
+    
     Returns:
-        Optional[str]: The trimmed input line when it appears to be an address, `None` otherwise.
+        Optional[str]: The trimmed address string if the line appears to contain an address, `None` otherwise.
     """
     if _extract_header_language_entries(line):
         return None
@@ -389,14 +412,14 @@ def _extract_address(line: str) -> Optional[str]:
 
 def _extract_name_and_title(lines: list[str], common_headers: set) -> tuple[str, str]:
     """
-    Selects the candidate's name and job title from the top OCR lines.
-
-    Scans up to the first five lines. The first line that is not a section header and does not resemble contact/identity data becomes the name; the next such line (if any) becomes the title. Scanning stops early if a section header is encountered.
-
+    Select the candidate's name and title from the top OCR lines.
+    
+    Scans up to the first five lines and picks the first line that is not a section header, language header, or obvious contact/identity token as the name; uses the next such line (if present) as the title. Parsing halts early if a section header is encountered after both values are found.
+    
     Parameters:
         lines (list[str]): OCR-extracted lines from the top of the document.
         common_headers (set): Uppercased section header tokens used to recognize and skip heading lines.
-
+    
     Returns:
         tuple[str, str]: (name, title) where each is the trimmed line string or an empty string if not found.
     """
@@ -522,7 +545,17 @@ def _parse_job_header(line: str) -> dict[str, str]:
 
 
 def _collect_job_content(lines: list[str], start_idx: int) -> tuple[list[str], int]:
-    """Collect content lines for a job until next header or job header."""
+    """
+    Collects consecutive non-header lines belonging to a job entry starting at a given index.
+    
+    Parameters:
+        lines (list[str]): The list of stripped OCR lines to scan.
+        start_idx (int): Index in `lines` at which to begin collection.
+    
+    Returns:
+        content_parts (list[str]): Stripped lines that belong to the job description (may be empty).
+        next_index (int): Index of the first line that is a section header, a job header, or `len(lines)` if end was reached.
+    """
     content_parts = []
     i = start_idx
     while i < len(lines):
@@ -537,14 +570,18 @@ def _parse_single_job(
     lines: list[str], job_header_idx: int
 ) -> tuple[dict[str, Any], int]:
     """
-    Parse a single job entry starting from the job header line.
-
+    Parse a single job entry and extract its structured fields from OCR lines.
+    
+    Parses the header at job_header_idx to populate title, company, location and dates, then collects the following content as a description and a list of achievement bullets.
+    
     Parameters:
-        lines (list[str]): OCR lines.
-        job_header_idx (int): Index of the job header line.
-
+        lines (list[str]): OCR-extracted, stripped lines from the document.
+        job_header_idx (int): Index of the line containing the job header.
+    
     Returns:
-        tuple[dict, int]: The parsed job dict and the next index after the job content.
+        tuple[dict, int]: A tuple (job, next_index) where `job` contains the keys
+        `title`, `company`, `location`, `dates`, `description`, and `achievements`,
+        and `next_index` is the index in `lines` immediately after the parsed job block.
     """
     line = lines[job_header_idx].strip()
     job_data = _parse_job_header(line)
@@ -946,13 +983,13 @@ def _handle_competencies_and_skills_section(
 ) -> tuple[dict, int]:
     """
     Map competencies and skills in the section to sanitized category→skill lists.
-
-    Collects the section lines starting at start_idx, splits the text into keyword-led blocks, and for each block containing a colon interprets the left side as the category and the right side as comma- or semicolon-separated skill values. Category names and individual skill values are sanitized; blocks without a colon are ignored.
-
+    
+    Parses the section starting after start_idx, splits content into keyword-led blocks using SKILL_KEYWORDS, and for each block containing a colon treats the left side as a category and the right side as comma- or semicolon-separated skills. Category names and skill values are sanitized; blocks without a colon are ignored.
+    
     Parameters:
         lines (list[str]): All OCR lines from the document.
         start_idx (int): Index of the section header line; parsing begins at the following line.
-
+    
     Returns:
         tuple[dict, int]: A tuple where the first element maps sanitized category names to lists of sanitized skill strings, and the second element is the index of the first line after the section.
     """
