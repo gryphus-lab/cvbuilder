@@ -387,6 +387,151 @@ def _parse_education_entry(item: str, degree_keywords: list[str]) -> dict[str, s
     return entry
 
 
+def _handle_profile_section(lines: list[str], start_idx: int) -> tuple[str, int]:
+    """
+    Handle the profile section.
+
+    Parameters:
+        lines (list[str]): OCR'd lines from the document.
+        start_idx (int): Index of the section header.
+
+    Returns:
+        tuple[str, int]: Parsed profile text and next index.
+    """
+    profile_lines, next_idx = _parse_generic_section(lines, start_idx)
+    return final_sanitize("\n".join(profile_lines)), next_idx
+
+
+def _handle_strategic_impact_section(lines: list[str], start_idx: int) -> tuple[list[str], int]:
+    """
+    Handle the strategic impact section.
+
+    Parameters:
+        lines (list[str]): OCR'd lines from the document.
+        start_idx (int): Index of the section header.
+
+    Returns:
+        tuple[list[str], int]: List of strategic impact bullets and next index.
+    """
+    content, next_idx = _parse_generic_section(lines, start_idx)
+    _, bullets = semantic_bullet_split(" ".join(content), STRATEGIC_KEYWORDS)
+    return bullets, next_idx
+
+
+def _handle_education_section(lines: list[str], start_idx: int) -> tuple[list[dict], int]:
+    """
+    Handle the education section.
+
+    Parameters:
+        lines (list[str]): OCR'd lines from the document.
+        start_idx (int): Index of the section header.
+
+    Returns:
+        tuple[list[dict], int]: List of education entries and next index.
+    """
+    content, next_idx = _parse_generic_section(lines, start_idx)
+    degree_keywords = [
+        "Bachelor",
+        "Master",
+        "B.Tech",
+        "B.Sc",
+        "M.Tech",
+        "M.Sc",
+        "PhD",
+        "Doctorate",
+    ]
+    education_entries = [_parse_education_entry(item, degree_keywords) for item in content]
+    return education_entries, next_idx
+
+
+def _handle_languages_section(lines: list[str], start_idx: int) -> tuple[list[str], int]:
+    """
+    Handle the languages section.
+
+    Parameters:
+        lines (list[str]): OCR'd lines from the document.
+        start_idx (int): Index of the section header.
+
+    Returns:
+        tuple[list[str], int]: List of language entries and next index.
+    """
+    content, next_idx = _parse_generic_section(lines, start_idx)
+    languages = []
+
+    # Detect if section uses bullets
+    has_bullets = any("•" in line for line in content)
+
+    if has_bullets:
+        # Use bullet aggregation logic
+        current = None
+        for original_line in content:
+            if original_line.startswith("•"):
+                line_without_bullet = re.sub(r"^\s*•\s*", "", original_line).strip()
+                sanitized_text = final_sanitize(line_without_bullet)
+                if sanitized_text and LINKEDIN_KEYWORD not in sanitized_text.lower():
+                    if current:
+                        languages.append(current)
+                    current = sanitized_text
+            else:
+                sanitized_text = final_sanitize(original_line)
+                if sanitized_text and LINKEDIN_KEYWORD not in sanitized_text.lower():
+                    if current:
+                        current += " " + sanitized_text
+                    else:
+                        current = sanitized_text
+        if current:
+            languages.append(current)
+    else:
+        # Treat each non-empty line as a separate language entry
+        for content_line in content:
+            sanitized_line = final_sanitize(content_line)
+            if sanitized_line and LINKEDIN_KEYWORD not in sanitized_line.lower():
+                languages.append(sanitized_line)
+
+    return languages, next_idx
+
+
+def _handle_competencies_and_skills_section(lines: list[str], start_idx: int) -> tuple[dict, int]:
+    """
+    Handle the competencies and skills section.
+
+    Parameters:
+        lines (list[str]): OCR'd lines from the document.
+        start_idx (int): Index of the section header.
+
+    Returns:
+        tuple[dict, int]: Dictionary of skill categories and next index.
+    """
+    content, next_idx = _parse_generic_section(lines, start_idx)
+    _, skill_blocks = semantic_bullet_split(" ".join(content), SKILL_KEYWORDS)
+    skills_dict = {}
+    for block in skill_blocks:
+        if ":" in block:
+            cat, vals = block.split(":", 1)
+            skills_dict[final_sanitize(cat.strip())] = [
+                final_sanitize(v.strip())
+                for v in re.split(r"[;,]", vals)
+                if v.strip()
+            ]
+    return skills_dict, next_idx
+
+
+def _handle_generic_fallback_section(lines: list[str], start_idx: int, canonical_section: str) -> tuple[list[str], int]:
+    """
+    Handle generic sections using fallback logic.
+
+    Parameters:
+        lines (list[str]): OCR'd lines from the document.
+        start_idx (int): Index of the section header.
+        canonical_section (str): The canonical section name.
+
+    Returns:
+        tuple[list[str], int]: List of sanitized items and next index.
+    """
+    content, next_idx = _parse_generic_section(lines, start_idx)
+    return [final_sanitize(item) for item in content], next_idx
+
+
 def parse_cv_to_json(pdf_path: str):
     """
     Parse a CV PDF and extract structured resume data as a JSON-serializable dictionary.
@@ -430,6 +575,16 @@ def parse_cv_to_json(pdf_path: str):
     # === PERSONAL INFO - parsed once from the very top ===
     cv_data["personal_info"] = _parse_personal_info(lines)
 
+    # Define section handler mapping
+    section_handlers = {
+        "profile": _handle_profile_section,
+        "professional_experience": _parse_experience,
+        "strategic_impact": _handle_strategic_impact_section,
+        "education": _handle_education_section,
+        "languages": _handle_languages_section,
+        "competencies_and_skills": _handle_competencies_and_skills_section,
+    }
+
     i = 0
     while i < len(lines):
         line_upper = lines[i].upper().strip().rstrip(":")
@@ -438,98 +593,12 @@ def parse_cv_to_json(pdf_path: str):
         if line_upper in SECTION_HEADERS:
             canonical_section = SECTION_HEADERS[line_upper]
 
-            # Handle special sections with custom parsing logic
-            if canonical_section == "profile":
-                profile_lines, i = _parse_generic_section(lines, i)
-                cv_data["profile"] = final_sanitize("\n".join(profile_lines))
-            elif canonical_section == "professional_experience":
-                cv_data["professional_experience"], i = _parse_experience(lines, i)
-            elif canonical_section == "strategic_impact":
-                content, i = _parse_generic_section(lines, i)
-                _, bullets = semantic_bullet_split(
-                    " ".join(content), STRATEGIC_KEYWORDS
-                )
-                cv_data["strategic_impact"] = bullets
-            elif canonical_section == "education":
-                content, i = _parse_generic_section(lines, i)
-                degree_keywords = [
-                    "Bachelor",
-                    "Master",
-                    "B.Tech",
-                    "B.Sc",
-                    "M.Tech",
-                    "M.Sc",
-                    "PhD",
-                    "Doctorate",
-                ]
-                cv_data["education"] = [
-                    _parse_education_entry(item, degree_keywords) for item in content
-                ]
-            elif canonical_section == "languages":
-                content, i = _parse_generic_section(lines, i)
-                languages = []
-
-                # Detect if section uses bullets
-                has_bullets = any("•" in line for line in content)
-
-                if has_bullets:
-                    # Use bullet aggregation logic
-                    current = None
-                    for original_line in content:
-                        if original_line.startswith("•"):
-                            line_without_bullet = re.sub(
-                                r"^\s*•\s*", "", original_line
-                            ).strip()
-                            sanitized_text = final_sanitize(line_without_bullet)
-                            if (
-                                sanitized_text
-                                and LINKEDIN_KEYWORD not in sanitized_text.lower()
-                            ):
-                                if current:
-                                    languages.append(current)
-                                current = sanitized_text
-                        else:
-                            sanitized_text = final_sanitize(original_line)
-                            if (
-                                sanitized_text
-                                and LINKEDIN_KEYWORD not in sanitized_text.lower()
-                            ):
-                                if current:
-                                    current += " " + sanitized_text
-                                else:
-                                    current = sanitized_text
-                    if current:
-                        languages.append(current)
-                else:
-                    # Treat each non-empty line as a separate language entry
-                    for content_line in content:
-                        sanitized_line = final_sanitize(content_line)
-                        if (
-                            sanitized_line
-                            and LINKEDIN_KEYWORD not in sanitized_line.lower()
-                        ):
-                            languages.append(sanitized_line)
-
-                cv_data["languages"] = languages
-            elif canonical_section == "competencies_and_skills":
-                content, i = _parse_generic_section(lines, i)
-                _, skill_blocks = semantic_bullet_split(
-                    " ".join(content), SKILL_KEYWORDS
-                )
-                skills_dict = {}
-                for block in skill_blocks:
-                    if ":" in block:
-                        cat, vals = block.split(":", 1)
-                        skills_dict[final_sanitize(cat.strip())] = [
-                            final_sanitize(v.strip())
-                            for v in re.split(r"[;,]", vals)
-                            if v.strip()
-                        ]
-                cv_data["competencies_and_skills"] = skills_dict
+            # Route to appropriate handler
+            if canonical_section in section_handlers:
+                cv_data[canonical_section], i = section_handlers[canonical_section](lines, i)
             else:
                 # Generic fallback for other configured sections
-                content, i = _parse_generic_section(lines, i)
-                cv_data[canonical_section] = [final_sanitize(item) for item in content]
+                cv_data[canonical_section], i = _handle_generic_fallback_section(lines, i, canonical_section)
         else:
             i += 1
 
