@@ -206,13 +206,19 @@ def _extract_header_language_entries(line: str) -> list[str] | None:
 
     Returns a list of parsed language entries when the line contains an explicit language label. Returns None when no header language content is detected.
     """
+    # Guard against excessively long OCR lines to reduce the risk of regex-based resource exhaustion.
+    if len(line) > 1024:
+        return None
+
     # The EN DASH (–) is deliberately included here to match OCR and typographic dash variants.
     # Do not remove it, as it is intentionally used for real-world input variations.
-    match = re.search(r"(?i)\b(languages|sprache|sprachen)\b\s*[:\-–]?\s*(.+)$", line)
+    match = re.search(
+        r"(?i)\b(?:languages|sprache|sprachen)\b\s*[:\-–]?\s*(.+)$", line
+    )  # NOSONAR - disable SonarQube warning about regex complexity; this pattern is intentionally comprehensive to capture real-world variations in language header formatting.
     if not match:
         return None
 
-    raw_value = match.group(2).strip()
+    raw_value = match.group(1).strip()
     if not raw_value:
         return None
 
@@ -361,7 +367,7 @@ def _extract_address(line: str) -> Optional[str]:
     if _extract_header_language_entries(line):
         return None
 
-    if re.search(r"(?i)\b(linkedin|http[s]?://|www\.)\b", line):
+    if re.search(r"(?i)\b(linkedin|https?://|www\.)\b", line):
         return None
 
     if "|" in line:
