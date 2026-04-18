@@ -14,6 +14,7 @@ SECTION_HEADERS = CONFIG["section_headers"]
 ACHIEVEMENT_KEYWORDS = CONFIG["achievement_keywords"]
 SKILL_KEYWORDS = CONFIG["skill_keywords"]
 STRATEGIC_KEYWORDS = CONFIG["strategic_keywords"]
+DEGREE_KEYWORDS = CONFIG["degree_keywords"]
 
 LINKEDIN_KEYWORD = "linkedin.com"
 
@@ -352,6 +353,37 @@ def _parse_personal_info(lines: list[str]) -> dict[str, str]:
     return info
 
 
+def _is_job_header(line: str) -> bool:
+    """Check if a line looks like a job header with title, company, and dates."""
+    return "(" in line and line.endswith(")") and "," in line
+
+
+def _parse_job_header(line: str) -> dict[str, str]:
+    """Parse job header into title, company, location, dates."""
+    header_part, dates_part = line.rsplit("(", 1)
+    dates = dates_part[:-1].strip()
+    header_parts = [part.strip() for part in header_part.split(",")]
+
+    return {
+        "title": header_parts[0],
+        "company": header_parts[1],
+        "location": final_sanitize(header_parts[2]) if len(header_parts) >= 3 else "",
+        "dates": dates,
+    }
+
+
+def _collect_job_content(lines: list[str], start_idx: int) -> tuple[list[str], int]:
+    """Collect content lines for a job until next header or job header."""
+    content_parts = []
+    i = start_idx
+    while i < len(lines):
+        if _is_header(lines[i]) or _is_job_header(lines[i].strip()):
+            break
+        content_parts.append(lines[i].strip())
+        i += 1
+    return content_parts, i
+
+
 def _parse_experience(lines: list[str], start_idx: int) -> tuple[list[dict], int]:
     """
     Parse professional experience entries from OCR lines starting immediately after the given section header index.
@@ -377,45 +409,25 @@ def _parse_experience(lines: list[str], start_idx: int) -> tuple[list[dict], int
         if _is_header(line):
             break
 
-        if "(" in line and line.endswith(")") and "," in line:
-            header_part, dates_part = line.rsplit("(", 1)
-            dates = dates_part[:-1].strip()
-            header_parts = [part.strip() for part in header_part.split(",")]
-
-            if len(header_parts) >= 2:
-                job = {
-                    "title": header_parts[0],
-                    "company": header_parts[1],
-                    "location": (
-                        final_sanitize(header_parts[2])
-                        if len(header_parts) >= 3
-                        else ""
-                    ),
-                    "dates": dates,
-                    "description": "",
-                    "achievements": [],
-                }
-                i += 1
-                content_parts = []
-                while (
-                    i < len(lines)
-                    and not _is_header(lines[i])
-                    and not (
-                        "(" in lines[i]
-                        and lines[i].strip().endswith(")")
-                        and "," in lines[i]
-                    )
-                ):
-                    content_parts.append(lines[i].strip())
-                    i += 1
-
-                desc, achs = semantic_bullet_split(
-                    " ".join(content_parts), ACHIEVEMENT_KEYWORDS
-                )
-                job["description"] = desc
-                job["achievements"] = achs
-                jobs.append(job)
-                continue
+        if _is_job_header(line):
+            job_data = _parse_job_header(line)
+            job = {
+                "title": job_data["title"],
+                "company": job_data["company"],
+                "location": job_data["location"],
+                "dates": job_data["dates"],
+                "description": "",
+                "achievements": [],
+            }
+            i += 1
+            content_parts, i = _collect_job_content(lines, i)
+            desc, achs = semantic_bullet_split(
+                " ".join(content_parts), ACHIEVEMENT_KEYWORDS
+            )
+            job["description"] = desc
+            job["achievements"] = achs
+            jobs.append(job)
+            continue
 
         i += 1
     return jobs, i
@@ -465,35 +477,20 @@ def _parse_comma_separated_education(
     part1_has_degree = len(sanitized_parts) > 1 and _contains_degree_keyword(
         sanitized_parts[1], degree_keywords
     )
-    item_has_degree = _contains_degree_keyword(item, degree_keywords)
 
-    # Use flat sequence of early returns
-    if part0_has_degree and not part1_has_degree:
-        return {
-            "degree": sanitized_parts[0],
-            "institution": sanitized_parts[1] if len(sanitized_parts) > 1 else "",
-        }
-
+    # Three clear branches for degree detection
     if part1_has_degree and not part0_has_degree:
         return {
             "institution": sanitized_parts[0],
             "degree": sanitized_parts[1] if len(sanitized_parts) > 1 else "",
         }
+    elif part0_has_degree:
+        return {
+            "degree": sanitized_parts[0],
+            "institution": sanitized_parts[1] if len(sanitized_parts) > 1 else "",
+        }
 
-    if item_has_degree:
-        # Resolve which sanitized part contains the keyword
-        if part0_has_degree:
-            return {
-                "degree": sanitized_parts[0],
-                "institution": sanitized_parts[1] if len(sanitized_parts) > 1 else "",
-            }
-        if part1_has_degree:
-            return {
-                "institution": sanitized_parts[0],
-                "degree": sanitized_parts[1],
-            }
-
-    # Default mapping when no degree keyword found
+    # Fallback when neither flag is set
     return {
         "institution": sanitized_parts[0],
         "degree": sanitized_parts[1] if len(sanitized_parts) > 1 else "",
@@ -650,20 +647,33 @@ def _handle_education_section(
         tuple[list[dict], int]: A tuple where the first element is a list of education entry dictionaries (each contains at minimum "institution" and "degree") and the second element is the index of the line immediately after the parsed section.
     """
     content, next_idx = _parse_generic_section(lines, start_idx)
-    degree_keywords = [
-        "Bachelor",
-        "Master",
-        "B.Tech",
-        "B.Sc",
-        "M.Tech",
-        "M.Sc",
-        "PhD",
-        "Doctorate",
-    ]
     education_entries = [
-        _parse_education_entry(item, degree_keywords) for item in content
+        _parse_education_entry(item, DEGREE_KEYWORDS) for item in content
     ]
     return education_entries, next_idx
+
+
+def _process_bullet_line(
+    line: str, current: str | None, languages: list[str]
+) -> str | None:
+    """Process a bullet line, returning the new current language or None."""
+    line_without_bullet = re.sub(r"^\s*•\s*", "", line).strip()
+    sanitized_text = final_sanitize(line_without_bullet)
+    if sanitized_text and LINKEDIN_KEYWORD not in sanitized_text.lower():
+        if current:
+            languages.append(current)
+        return sanitized_text
+    return current
+
+
+def _process_non_bullet_line(line: str, current: str | None) -> str | None:
+    """Process a non-bullet line, appending to current if valid."""
+    sanitized_text = final_sanitize(line)
+    if sanitized_text and LINKEDIN_KEYWORD not in sanitized_text.lower():
+        if current:
+            return current + " " + sanitized_text
+        return sanitized_text
+    return current
 
 
 def _parse_bulleted_languages(
@@ -687,19 +697,10 @@ def _parse_bulleted_languages(
 
     for original_line in content:
         if original_line.startswith("•"):
-            line_without_bullet = re.sub(r"^\s*•\s*", "", original_line).strip()
-            sanitized_text = final_sanitize(line_without_bullet)
-            if sanitized_text and LINKEDIN_KEYWORD not in sanitized_text.lower():
-                if current:
-                    languages.append(current)
-                current = sanitized_text
+            current = _process_bullet_line(original_line, current, languages)
         else:
-            sanitized_text = final_sanitize(original_line)
-            if sanitized_text and LINKEDIN_KEYWORD not in sanitized_text.lower():
-                if current:
-                    current += " " + sanitized_text
-                else:
-                    current = sanitized_text
+            current = _process_non_bullet_line(original_line, current)
+
     if current:
         languages.append(current)
 
