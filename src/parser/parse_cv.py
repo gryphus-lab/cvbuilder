@@ -212,9 +212,7 @@ def _extract_header_language_entries(line: str) -> list[str] | None:
 
     # The EN DASH (–) is deliberately included here to match OCR and typographic dash variants.
     # Do not remove it, as it is intentionally used for real-world input variations.
-    match = re.search(
-        r"(?i)\b(?:languages|sprache|sprachen)\b\s*[:\-–]?\s*(.+)$", line
-    )  # NOSONAR - disable SonarQube warning about regex complexity; this pattern is intentionally comprehensive to capture real-world variations in language header formatting.
+    match = re.search(r"(?i)\b(?:languages|sprache|sprachen)\b\s*[:\-–]?\s*(.+)$", line)
     if not match:
         return None
 
