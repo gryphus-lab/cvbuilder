@@ -172,32 +172,16 @@ def _parse_personal_info(lines: List[str]) -> Dict[str, str]:
     """
     info = {"name": "", "title": ""}
 
-    # Common section headers to skip
-    COMMON_HEADERS = {
-        "PROFILE",
-        "SUMMARY",
-        "EXPERIENCE",
-        "EDUCATION",
-        "SKILLS",
-        "PROJECTS",
-        "PROFESSIONAL EXPERIENCE",
-        "STRATEGIC IMPACT & TRANSFORMATIONS",
-        "CERTIFICATES AND TRAINING",
-        "LANGUAGES",
-        "COMPETENCIES AND SKILLS",
-        "VOLUNTEERING",
-    }
-
     # Try to extract name from first non-empty line (before any detected fields)
     for idx, line in enumerate(lines[:5]):
         stripped = line.strip()
-        # Skip section headers (matches known headers or obvious header patterns)
+        # Skip section headers using config-driven SECTION_HEADERS
         line_upper = stripped.upper().rstrip(":")
         is_heading = (
-            line_upper in COMMON_HEADERS
+            line_upper in SECTION_HEADERS
             or stripped.endswith(":")
-            or any(word in COMMON_HEADERS for word in line_upper.split())
-            or any(line_upper.startswith(header) for header in COMMON_HEADERS)
+            or any(word in SECTION_HEADERS for word in line_upper.split())
+            or any(line_upper.startswith(header) for header in SECTION_HEADERS)
         )
 
         if (
@@ -366,149 +350,154 @@ def parse_cv_to_json(pdf_path: str):
     while i < len(lines):
         line_upper = lines[i].upper().strip().rstrip(":")
 
-        if line_upper == "PROFILE":
-            profile_lines, i = _parse_generic_section(lines, i)
-            cv_data["profile"] = final_sanitize("\n".join(profile_lines))
-        elif line_upper == "PROFESSIONAL EXPERIENCE":
-            cv_data["professional_experience"], i = _parse_experience(lines, i)
-        elif line_upper == "STRATEGIC IMPACT & TRANSFORMATIONS":
-            content, i = _parse_generic_section(lines, i)
-            _, bullets = semantic_bullet_split(" ".join(content), STRATEGIC_KEYWORDS)
-            cv_data["strategic_impact"] = bullets
-        elif line_upper == "EDUCATION":
-            content, i = _parse_generic_section(lines, i)
-            edu = []
-            degree_keywords = [
-                "Bachelor",
-                "Master",
-                "B.Tech",
-                "B.Sc",
-                "M.Tech",
-                "M.Sc",
-                "PhD",
-                "Doctorate",
-            ]
+        # Use SECTION_HEADERS for config-driven routing
+        if line_upper in SECTION_HEADERS:
+            canonical_section = SECTION_HEADERS[line_upper]
 
-            for item in content:
-                sanitized = final_sanitize(item)
-                entry = {"institution": "", "degree": ""}
+            # Handle special sections with custom parsing logic
+            if canonical_section == "profile":
+                profile_lines, i = _parse_generic_section(lines, i)
+                cv_data["profile"] = final_sanitize("\n".join(profile_lines))
+            elif canonical_section == "professional_experience":
+                cv_data["professional_experience"], i = _parse_experience(lines, i)
+            elif canonical_section == "strategic_impact":
+                content, i = _parse_generic_section(lines, i)
+                _, bullets = semantic_bullet_split(" ".join(content), STRATEGIC_KEYWORDS)
+                cv_data["strategic_impact"] = bullets
+            elif canonical_section == "education":
+                content, i = _parse_generic_section(lines, i)
+                edu = []
+                degree_keywords = [
+                    "Bachelor",
+                    "Master",
+                    "B.Tech",
+                    "B.Sc",
+                    "M.Tech",
+                    "M.Sc",
+                    "PhD",
+                    "Doctorate",
+                ]
 
-                # Try to detect degree keywords
-                degree_found = ""
-                for deg_kw in degree_keywords:
-                    if deg_kw in item:
-                        degree_found = sanitized
-                        break
+                for item in content:
+                    sanitized = final_sanitize(item)
+                    entry = {"institution": "", "degree": ""}
 
-                # Try to split by common separators
-                if "," in item:
-                    parts = item.split(",", 1)
-                    sanitized_parts = [final_sanitize(p) for p in parts]
-                    # Check which part contains the degree keyword
-                    part0_has_degree = any(
-                        deg_kw in sanitized_parts[0] for deg_kw in degree_keywords
-                    )
-                    part1_has_degree = len(sanitized_parts) > 1 and any(
-                        deg_kw in sanitized_parts[1] for deg_kw in degree_keywords
-                    )
+                    # Try to detect degree keywords
+                    degree_found = ""
+                    for deg_kw in degree_keywords:
+                        if deg_kw in item:
+                            degree_found = sanitized
+                            break
 
-                    if part0_has_degree and not part1_has_degree:
-                        entry["degree"] = sanitized_parts[0]
-                        entry["institution"] = (
-                            sanitized_parts[1] if len(sanitized_parts) > 1 else ""
+                    # Try to split by common separators
+                    if "," in item:
+                        parts = item.split(",", 1)
+                        sanitized_parts = [final_sanitize(p) for p in parts]
+                        # Check which part contains the degree keyword
+                        part0_has_degree = any(
+                            deg_kw in sanitized_parts[0] for deg_kw in degree_keywords
                         )
-                    elif part1_has_degree and not part0_has_degree:
-                        entry["institution"] = sanitized_parts[0]
-                        entry["degree"] = sanitized_parts[1]
+                        part1_has_degree = len(sanitized_parts) > 1 and any(
+                            deg_kw in sanitized_parts[1] for deg_kw in degree_keywords
+                        )
+
+                        if part0_has_degree and not part1_has_degree:
+                            entry["degree"] = sanitized_parts[0]
+                            entry["institution"] = (
+                                sanitized_parts[1] if len(sanitized_parts) > 1 else ""
+                            )
+                        elif part1_has_degree and not part0_has_degree:
+                            entry["institution"] = sanitized_parts[0]
+                            entry["degree"] = sanitized_parts[1]
+                        elif degree_found:
+                            # Fallback to original heuristic when both or neither contain degree
+                            entry["degree"] = sanitized_parts[0]
+                            entry["institution"] = (
+                                sanitized_parts[1] if len(sanitized_parts) > 1 else ""
+                            )
+                        else:
+                            entry["institution"] = sanitized_parts[0]
+                            entry["degree"] = (
+                                sanitized_parts[1] if len(sanitized_parts) > 1 else ""
+                            )
+                    elif " - " in item:
+                        parts = item.split(" - ", 1)
+                        entry["institution"] = final_sanitize(parts[0])
+                        entry["degree"] = final_sanitize(parts[1]) if len(parts) > 1 else ""
                     elif degree_found:
-                        # Fallback to original heuristic when both or neither contain degree
-                        entry["degree"] = sanitized_parts[0]
-                        entry["institution"] = (
-                            sanitized_parts[1] if len(sanitized_parts) > 1 else ""
-                        )
+                        # No separator found and degree detected
+                        entry["degree"] = sanitized
+                    elif "Institute" in item or "University" in item or "College" in item:
+                        entry["institution"] = sanitized
                     else:
-                        entry["institution"] = sanitized_parts[0]
-                        entry["degree"] = (
-                            sanitized_parts[1] if len(sanitized_parts) > 1 else ""
-                        )
-                elif " - " in item:
-                    parts = item.split(" - ", 1)
-                    entry["institution"] = final_sanitize(parts[0])
-                    entry["degree"] = final_sanitize(parts[1]) if len(parts) > 1 else ""
-                elif degree_found:
-                    # No separator found and degree detected
-                    entry["degree"] = sanitized
-                elif "Institute" in item or "University" in item or "College" in item:
-                    entry["institution"] = sanitized
-                else:
-                    # Fallback: use the whole line as institution
-                    entry["institution"] = sanitized
+                        # Fallback: use the whole line as institution
+                        entry["institution"] = sanitized
 
-                edu.append(entry)
-            cv_data["education"] = edu
-        elif line_upper == "LANGUAGES":
-            content, i = _parse_generic_section(lines, i)
-            languages = []
+                    edu.append(entry)
+                cv_data["education"] = edu
+            elif canonical_section == "languages":
+                content, i = _parse_generic_section(lines, i)
+                languages = []
 
-            # Detect if section uses bullets
-            has_bullets = any("•" in line for line in content)
+                # Detect if section uses bullets
+                has_bullets = any("•" in line for line in content)
 
-            if has_bullets:
-                # Use bullet aggregation logic
-                current = None
-                for original_line in content:
-                    if original_line.startswith("•"):
-                        line_without_bullet = re.sub(
-                            r"^\s*•\s*", "", original_line
-                        ).strip()
-                        sanitized_text = final_sanitize(line_without_bullet)
-                        if (
-                            sanitized_text
-                            and LINKEDIN_KEYWORD not in sanitized_text.lower()
-                        ):
-                            if current:
-                                languages.append(current)
-                            current = sanitized_text
-                    else:
-                        sanitized_text = final_sanitize(original_line)
-                        if (
-                            sanitized_text
-                            and LINKEDIN_KEYWORD not in sanitized_text.lower()
-                        ):
-                            if current:
-                                current += " " + sanitized_text
-                            else:
+                if has_bullets:
+                    # Use bullet aggregation logic
+                    current = None
+                    for original_line in content:
+                        if original_line.startswith("•"):
+                            line_without_bullet = re.sub(
+                                r"^\s*•\s*", "", original_line
+                            ).strip()
+                            sanitized_text = final_sanitize(line_without_bullet)
+                            if (
+                                sanitized_text
+                                and LINKEDIN_KEYWORD not in sanitized_text.lower()
+                            ):
+                                if current:
+                                    languages.append(current)
                                 current = sanitized_text
-                if current:
-                    languages.append(current)
-            else:
-                # Treat each non-empty line as a separate language entry
-                for content_line in content:
-                    sanitized_line = final_sanitize(content_line)
-                    if (
-                        sanitized_line
-                        and LINKEDIN_KEYWORD not in sanitized_line.lower()
-                    ):
-                        languages.append(sanitized_line)
+                        else:
+                            sanitized_text = final_sanitize(original_line)
+                            if (
+                                sanitized_text
+                                and LINKEDIN_KEYWORD not in sanitized_text.lower()
+                            ):
+                                if current:
+                                    current += " " + sanitized_text
+                                else:
+                                    current = sanitized_text
+                    if current:
+                        languages.append(current)
+                else:
+                    # Treat each non-empty line as a separate language entry
+                    for content_line in content:
+                        sanitized_line = final_sanitize(content_line)
+                        if (
+                            sanitized_line
+                            and LINKEDIN_KEYWORD not in sanitized_line.lower()
+                        ):
+                            languages.append(sanitized_line)
 
-            cv_data["languages"] = languages
-        elif line_upper == "COMPETENCIES AND SKILLS":
-            content, i = _parse_generic_section(lines, i)
-            _, skill_blocks = semantic_bullet_split(" ".join(content), SKILL_KEYWORDS)
-            skills_dict = {}
-            for block in skill_blocks:
-                if ":" in block:
-                    cat, vals = block.split(":", 1)
-                    skills_dict[final_sanitize(cat.strip())] = [
-                        final_sanitize(v.strip())
-                        for v in re.split(r"[;,]", vals)
-                        if v.strip()
-                    ]
-            cv_data["competencies_and_skills"] = skills_dict
-        elif line_upper in SECTION_HEADERS:
-            key = SECTION_HEADERS[line_upper]
-            content, i = _parse_generic_section(lines, i)
-            cv_data[key] = [final_sanitize(item) for item in content]
+                cv_data["languages"] = languages
+            elif canonical_section == "competencies_and_skills":
+                content, i = _parse_generic_section(lines, i)
+                _, skill_blocks = semantic_bullet_split(" ".join(content), SKILL_KEYWORDS)
+                skills_dict = {}
+                for block in skill_blocks:
+                    if ":" in block:
+                        cat, vals = block.split(":", 1)
+                        skills_dict[final_sanitize(cat.strip())] = [
+                            final_sanitize(v.strip())
+                            for v in re.split(r"[;,]", vals)
+                            if v.strip()
+                        ]
+                cv_data["competencies_and_skills"] = skills_dict
+            else:
+                # Generic fallback for other configured sections
+                content, i = _parse_generic_section(lines, i)
+                cv_data[canonical_section] = [final_sanitize(item) for item in content]
         else:
             i += 1
 
