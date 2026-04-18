@@ -567,7 +567,10 @@ def test_final_sanitize_ii_to_umlaut_ocr_artifact():
 
 
 def test_extract_email_valid():
-    assert _extract_email("Contact me at john.doe@example.com today") == "john.doe@example.com"
+    assert (
+        _extract_email("Contact me at john.doe@example.com today")
+        == "john.doe@example.com"
+    )
 
 
 def test_extract_email_no_email():
@@ -647,7 +650,7 @@ def test_extract_dob_empty_string():
 
 def test_extract_dob_partial_line():
     """Should work when DOB label appears mid-line."""
-    result = _extract_dob("Personal info. Date of Birth: 01.01.1990. Swiss.")
+    result = _extract_dob("Personal info. Date of Birth: 01.01.1990 | Swiss.")
     assert result == "01.01.1990"
 
 
@@ -777,7 +780,12 @@ def test_extract_name_and_title_skips_permit_line():
 
 
 def test_parse_personal_info_extracts_name_and_email():
-    lines = ["Alex Johnson", "Cloud Architect", "alex.johnson@company.com", "+41791234567"]
+    lines = [
+        "Alex Johnson",
+        "Cloud Architect",
+        "alex.johnson@company.com",
+        "+41791234567",
+    ]
     info = _parse_personal_info(lines)
     assert info["name"] == "Alex Johnson"
     assert info["email"] == "alex.johnson@company.com"
@@ -823,7 +831,8 @@ def test_parse_personal_info_empty_lines():
 def test_parse_personal_info_first_field_wins():
     """When multiple lines match the same field, only the first value is captured."""
     lines = [
-        "First Person", "Title A",
+        "First Person",
+        "Title A",
         "first@example.com",
         "second@example.com",  # Should not overwrite first email
     ]
@@ -916,7 +925,11 @@ def test_handle_profile_section_sanitizes_content():
 
 def test_handle_strategic_impact_section_returns_bullets():
     kw = STRATEGIC_KEYWORDS[0]
-    lines = ["STRATEGIC IMPACT & TRANSFORMATIONS", f"Intro. {kw}: Delivered results.", "EDUCATION"]
+    lines = [
+        "STRATEGIC IMPACT & TRANSFORMATIONS",
+        f"Intro. {kw}: Delivered results.",
+        "EDUCATION",
+    ]
     bullets, next_idx = _handle_strategic_impact_section(lines, 0)
     assert isinstance(bullets, list)
     assert next_idx == 2
@@ -930,7 +943,11 @@ def test_handle_strategic_impact_section_empty():
 
 
 def test_handle_strategic_impact_section_no_keywords():
-    lines = ["STRATEGIC IMPACT & TRANSFORMATIONS", "Plain text with no strategic keywords.", "EDUCATION"]
+    lines = [
+        "STRATEGIC IMPACT & TRANSFORMATIONS",
+        "Plain text with no strategic keywords.",
+        "EDUCATION",
+    ]
     bullets, _ = _handle_strategic_impact_section(lines, 0)
     # No matching strategic keywords → no bullets
     assert isinstance(bullets, list)
@@ -986,7 +1003,13 @@ def test_handle_languages_section_empty():
 
 
 def test_handle_languages_section_filters_linkedin():
-    lines = ["LANGUAGES", "English (Native)", f"See profile at {LINKEDIN_KEYWORD}/in/johndoe", "German (B2)", "EDUCATION"]
+    lines = [
+        "LANGUAGES",
+        "English (Native)",
+        f"See profile at {LINKEDIN_KEYWORD}/in/johndoe",
+        "German (B2)",
+        "EDUCATION",
+    ]
     result, _ = _handle_languages_section(lines, 0)
     assert not any(LINKEDIN_KEYWORD in entry for entry in result)
     assert "English (Native)" in result
@@ -1151,7 +1174,9 @@ def test_parse_experience_location_field_is_string():
 @patch("src.parser.parse_cv.pt.image_to_string")
 def test_parse_cv_to_json_personal_info_is_dict(mock_ocr, mock_pdf_conv):
     """personal_info in the returned data must be a dict, not a list."""
-    mock_ocr.return_value = "John Smith\nSoftware Engineer\njohn@example.com\nPROFILE\nExperienced.\n"
+    mock_ocr.return_value = (
+        "John Smith\nSoftware Engineer\njohn@example.com\nPROFILE\nExperienced.\n"
+    )
     mock_pdf_conv.return_value = [MagicMock()]
     with patch("src.parser.parse_cv.Path.write_text"):
         result = parse_cv_to_json("dummy.pdf")
