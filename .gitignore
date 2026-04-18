@@ -10,6 +10,7 @@ wheels/
 .venv
 
 .idea
+.vscode
 results/
 .coverage
 .coverage.*
@@ -18,5 +19,4 @@ htmlcov/
 
 **/*.pdf
 **/*.png
-**/*.json
 **/*debug*

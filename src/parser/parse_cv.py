@@ -5,52 +5,15 @@ from typing import Dict, Any, List, Tuple
 import pytesseract as pt
 from pdf2image import convert_from_path
 
-SECTION_HEADERS = {
-    "PROFILE": "profile",
-    "STRATEGIC IMPACT & TRANSFORMATIONS": "strategic_impact",
-    "PROFESSIONAL EXPERIENCE": "professional_experience",
-    "CERTIFICATES AND TRAINING": "certificates_and_training",
-    "EDUCATION": "education",
-    "LANGUAGES": "languages",
-    "COMPETENCIES AND SKILLS": "competencies_and_skills",
-    "VOLUNTEERING": "volunteering",
-}
+# Load configuration from project root
+CONFIG_PATH = Path("config.json")
+with open(CONFIG_PATH, encoding="utf-8") as f:
+    CONFIG = json.load(f)
 
-# Keywords for semantic splitting
-ACHIEVEMENT_KEYWORDS = [
-    "Migration Impact",
-    "AI Efficiency",
-    "Team Leadership",
-    "Portfolio TCO",
-    "Security Transformation",
-    "Modernization",
-    "DACH Market Advisory",
-    "Legacy Modernization",
-    "Engineering Standards",
-    "High-Availability Delivery",
-    "Supply Chain Optimization",
-    "High-Volume Architecture",
-    "Rapid Progression",
-    "Middleware Leadership",
-]
-
-SKILL_KEYWORDS = [
-    "Artificial Intelligence",
-    "Architecture",
-    "Frameworks",
-    "Tools",
-    "Cloud & Platforms",
-    "DevSecOps",
-    "Data & BPM",
-    "Development",
-    "Regulatory/Governance",
-]
-
-STRATEGIC_KEYWORDS = [
-    "AI-Augmented SDLC Strategy",
-    "Large-Scale M&A Integration",
-    "Enterprise Portfolio & TCO Optimization",
-]
+SECTION_HEADERS = CONFIG["section_headers"]
+ACHIEVEMENT_KEYWORDS = CONFIG["achievement_keywords"]
+SKILL_KEYWORDS = CONFIG["skill_keywords"]
+STRATEGIC_KEYWORDS = CONFIG["strategic_keywords"]
 
 
 def _is_header(line: str) -> bool:
@@ -206,7 +169,6 @@ def _parse_personal_info(lines: List[str]) -> Dict[str, str]:
         if permit_match and not info.get("permit"):
             info["permit"] = permit_match.group(1).strip()
         # Address (first line that looks like an address)
-        # Skip lines already identified as phone or date, and require address-like pattern
         if (
             not info.get("address")
             and any(c.isdigit() for c in line)
