@@ -19,21 +19,27 @@ LINKEDIN_KEYWORD = "linkedin.com"
 
 
 def _is_header(line: str) -> bool:
+    """
+    Determine whether a text line corresponds to a configured section header.
+    
+    Returns:
+        True if the normalized line matches an entry in SECTION_HEADERS, False otherwise.
+    """
     clean = line.upper().strip().rstrip(":")
     return clean in SECTION_HEADERS
 
 
 def final_sanitize(text: str) -> str:
     """
-    Sanitize OCR-derived text by applying common corrections, collapsing duplicated keywords, and normalizing punctuation and whitespace.
-
-    Performs a set of fixed string replacements for common OCR errors, collapses adjacent duplicated occurrences of keywords from ACHIEVEMENT_KEYWORDS, SKILL_KEYWORDS, and STRATEGIC_KEYWORDS (case-insensitive), normalizes repeated whitespace to single spaces, normalizes colon spacing to ": ", trims surrounding whitespace, replaces "Nativ" with "Native", and returns an empty string when the input is falsy.
-
+    Sanitize OCR-extracted text by applying targeted corrections, collapsing duplicated keywords, and normalizing punctuation and whitespace.
+    
+    Performs targeted OCR fixes (e.g., `OpenAl` → `OpenAI`, `Al` → `AI` when followed by AI-related terms), removes stray glyphs like `•`, `©`, `¢`, and converts certain OCR `ii` patterns to `ü` in constrained contexts. Collapses adjacent duplicate occurrences of configured achievement/skill/strategic keywords, collapses repeated whitespace, normalizes spacing around colons to `": "`, replaces `Nativ` with `Native`, trims surrounding whitespace, and returns an empty string when the input is falsy.
+    
     Parameters:
         text (str): Raw OCR-extracted text to sanitize.
-
+    
     Returns:
-        str: The sanitized text.
+        str: The sanitized text (empty string if `text` is falsy).
     """
     if not text:
         return ""
@@ -103,13 +109,25 @@ def semantic_bullet_split(text: str, keywords: list) -> tuple[str, list[str]]:
 
 
 def _extract_email(line: str) -> Optional[str]:
-    """Extract email address from a line."""
+    """
+    Finds the first email address in the given line.
+    
+    Returns:
+        email (str | None): The first email address found, or `None` if no address is present.
+    """
     email_match = re.search(r"[\w\.-]+@[\w\.-]+\.\w+", line)
     return email_match.group(0) if email_match else None
 
 
 def _extract_phone(line: str) -> Optional[str]:
-    """Extract phone number from a line."""
+    """
+    Extracts and normalizes an international phone number from a text line.
+    
+    Searches for a substring that begins with `+` or `00`, allows common separators, removes separators, converts a leading `00` to `+`, and validates the result against an E.164-like pattern.
+    
+    Returns:
+        str | None: The phone number in E.164 format (`+` followed by 7–15 digits) if a valid number is found, otherwise `None`.
+    """
     # Match international E.164-style phone numbers with explicit prefix (+ or 00)
     # Only match strings that start with + or 00, followed by digits with optional separators
     phone_match = re.search(r"(?:\+|00)[\d\s\-().]{7,18}", line)
@@ -127,25 +145,50 @@ def _extract_phone(line: str) -> Optional[str]:
 
 
 def _extract_dob(line: str) -> Optional[str]:
-    """Extract date of birth from a line."""
+    """
+    Extracts a date of birth from a line that contains the literal "Date of Birth:" followed by digits and dots.
+    
+    Returns:
+        The captured date string (digits and dots), or `None` if no match is found.
+    """
     dob_match = re.search(r"Date of Birth:\s*([\d.]+)", line)
     return dob_match.group(1) if dob_match else None
 
 
 def _extract_nationality(line: str) -> Optional[str]:
-    """Extract nationality from a line."""
+    """
+    Extracts a nationality label from a single text line.
+    
+    Parameters:
+        line (str): A line of OCR text that may contain a "Nationality: <value>" field.
+    
+    Returns:
+        nationality (str): The word captured after "Nationality:" if present, otherwise None.
+    """
     nat_match = re.search(r"Nationality:\s*(\w+)", line)
     return nat_match.group(1) if nat_match else None
 
 
 def _extract_permit(line: str) -> Optional[str]:
-    """Extract permit information from a line."""
+    """
+    Extracts the value following a "Permit:" label from a single line of text.
+    
+    Returns:
+        permit (str): The captured permit text with surrounding whitespace removed, or None if the line does not contain a "Permit:" label.
+    """
     permit_match = re.search(r"Permit:\s*(.+)$", line)
     return permit_match.group(1).strip() if permit_match else None
 
 
 def _extract_address(line: str) -> Optional[str]:
-    """Extract address from a line if it looks like an address."""
+    """
+    Determine whether a line contains an address-like value and return it trimmed when detected.
+    
+    The line is considered an address if it contains a digit, matches common address tokens or a numeric+word pattern (e.g., "123 Main"), and does not appear to be a phone number, a standalone date, or a "Date of Birth" line.
+    
+    Returns:
+        address (Optional[str]): The trimmed address string when detected, `None` otherwise.
+    """
     if (
         any(c.isdigit() for c in line)
         and "Date of Birth" not in line
@@ -164,14 +207,14 @@ def _extract_address(line: str) -> Optional[str]:
 
 def _extract_name_and_title(lines: list[str], common_headers: set) -> tuple[str, str]:
     """
-    Extract name and title from the first few lines of the CV.
-
+    Identify the candidate's name and job title from the top lines of an OCRed CV.
+    
     Parameters:
-        lines (list[str]): OCR'd lines from the document.
-        common_headers (set): Set of common section headers to skip.
-
+        lines (list[str]): The OCR-extracted lines from the document, in order.
+        common_headers (set): Uppercased canonical section header strings to treat as headings and skip.
+    
     Returns:
-        tuple[str, str]: A tuple of (name, title).
+        tuple[str, str]: (name, title) where `name` is the first non-header, non-contact line found among the first five lines and `title` is the next such line (or an empty string if not found).
     """
     name = ""
     title = ""
@@ -245,17 +288,22 @@ def _parse_personal_info(lines: list[str]) -> dict[str, str]:
 
 def _parse_experience(lines: list[str], start_idx: int) -> tuple[list[dict], int]:
     """
-    Parse consecutive professional experience entries from OCR lines starting after start_idx.
-
-    @param lines: List of OCR-extracted, non-empty lines.
-    @param start_idx: Index of the header line that begins the experience section; parsing starts from the next line.
-    @returns: A tuple (jobs, next_index) where `jobs` is a list of job dictionaries and `next_index` is the line index where parsing stopped (the first header or end). Each job dictionary contains:
-        - `title` (str): Job title.
-        - `company` (str): Employer or organisation name.
-        - `location` (str): Sanitized location string or empty string if not present.
-        - `dates` (str): Date or date-range string as found in parentheses.
-        - `description` (str): Leading descriptive text for the role (may be empty).
-        - `achievements` (list[str]): Extracted achievement/keyword-led bullet segments (may be empty).
+    Parse professional experience entries from OCR lines starting after a section header.
+    
+    Parameters:
+        lines (list[str]): List of non-empty OCR-extracted lines.
+        start_idx (int): Index of the section header line that begins the experience section; parsing begins at the next line (start_idx + 1).
+    
+    Returns:
+        tuple[list[dict], int]: A tuple (jobs, next_index) where:
+            - jobs: list of job dictionaries, each containing:
+                - title (str): Job title.
+                - company (str): Employer or organization name.
+                - location (str): Sanitized location string or empty string if not present.
+                - dates (str): Date or date-range string as captured from parentheses.
+                - description (str): Leading descriptive text for the role (may be empty).
+                - achievements (list[str]): Extracted achievement/keyword-led bullet segments (may be empty).
+            - next_index: The line index where parsing stopped (the first detected header or the end of lines).
     """
     # Job header pattern: matches lines like "Title, Company, Location (Dates)"
     job_header_pattern = r"(.+?),\s*(.+?)(?:,\s*(.+?))?\s*\((.+?)\)"
@@ -305,6 +353,16 @@ def _parse_experience(lines: list[str], start_idx: int) -> tuple[list[dict], int
 
 
 def _parse_generic_section(lines: list[str], start_idx: int) -> tuple[list[str], int]:
+    """
+    Collect consecutive non-header, non-empty lines immediately after a section header.
+    
+    Parameters:
+        lines (list[str]): OCR-extracted lines of the document.
+        start_idx (int): Index of the section header line; collection begins at the next line.
+    
+    Returns:
+        tuple[list[str], int]: A pair where the first element is a list of stripped, non-empty lines collected until the next header, and the second element is the index of the line where collection stopped (either the next header's index or len(lines)).
+    """
     items = []
     i = start_idx + 1
     while i < len(lines) and not _is_header(lines[i]):
@@ -317,14 +375,18 @@ def _parse_generic_section(lines: list[str], start_idx: int) -> tuple[list[str],
 
 def _parse_education_entry(item: str, degree_keywords: list[str]) -> dict[str, str]:
     """
-    Parse a single education entry and extract institution and degree.
-
+    Extract the institution and degree from a single education line.
+    
+    The function detects degree mentions using the provided `degree_keywords` and prefers to split entries by a comma or " - " to assign which part is the institution and which is the degree. If a degree keyword is found but no separator helps disambiguate, the line is treated as the degree. If no degree is detected but the line contains institution markers (e.g., "Institute", "University", "College"), the whole sanitized line is treated as the institution. Empty strings are used for missing fields.
+    
     Parameters:
-        item (str): The raw education line to parse.
-        degree_keywords (list[str]): List of keywords to detect degrees.
-
+        item (str): Raw education line from the CV/OCR output.
+        degree_keywords (list[str]): Keywords used to identify degree text (e.g., "Bachelor", "Master", "PhD").
+    
     Returns:
-        dict[str, str]: Dictionary with 'institution' and 'degree' keys.
+        dict[str, str]: Dictionary with keys:
+            - 'institution': sanitized institution name or empty string if not found.
+            - 'degree': sanitized degree text or empty string if not found.
     """
     sanitized = final_sanitize(item)
     entry = {"institution": "", "degree": ""}
@@ -387,14 +449,15 @@ def _parse_education_entry(item: str, degree_keywords: list[str]) -> dict[str, s
 
 def _handle_profile_section(lines: list[str], start_idx: int) -> tuple[str, int]:
     """
-    Handle the profile section.
-
+    Collects profile lines following a profile header and returns the sanitized profile text.
+    
+    Parsing stops at the next detected section header.
+    
     Parameters:
-        lines (list[str]): OCR'd lines from the document.
-        start_idx (int): Index of the section header.
-
+        start_idx (int): Index of the profile section header; parsing begins after this line.
+    
     Returns:
-        tuple[str, int]: Parsed profile text and next index.
+        tuple[str, int]: Sanitized profile text and the index of the next unprocessed line.
     """
     profile_lines, next_idx = _parse_generic_section(lines, start_idx)
     return final_sanitize("\n".join(profile_lines)), next_idx
@@ -404,14 +467,16 @@ def _handle_strategic_impact_section(
     lines: list[str], start_idx: int
 ) -> tuple[list[str], int]:
     """
-    Handle the strategic impact section.
-
+    Extract strategic-impact bullets from the section beginning at start_idx.
+    
+    Collects the section's lines until the next header, splits them into semantic bullets using configured strategic keywords, and returns the sanitized bullet list.
+    
     Parameters:
         lines (list[str]): OCR'd lines from the document.
         start_idx (int): Index of the section header.
-
+    
     Returns:
-        tuple[list[str], int]: List of strategic impact bullets and next index.
+        tuple[list[str], int]: `bullets` — list of sanitized strategic-impact bullet strings; `next_idx` — index of the line following the parsed section.
     """
     content, next_idx = _parse_generic_section(lines, start_idx)
     _, bullets = semantic_bullet_split(" ".join(content), STRATEGIC_KEYWORDS)
@@ -422,14 +487,14 @@ def _handle_education_section(
     lines: list[str], start_idx: int
 ) -> tuple[list[dict], int]:
     """
-    Handle the education section.
-
+    Parse the education section into structured education entries.
+    
     Parameters:
-        lines (list[str]): OCR'd lines from the document.
-        start_idx (int): Index of the section header.
-
+        lines (list[str]): OCR-extracted lines from the document.
+        start_idx (int): Index of the section header line to begin parsing from.
+    
     Returns:
-        tuple[list[dict], int]: List of education entries and next index.
+        tuple[list[dict], int]: A list of education entry dictionaries (each containing keys such as `institution` and `degree`) and the index of the next line after the parsed section.
     """
     content, next_idx = _parse_generic_section(lines, start_idx)
     degree_keywords = [
@@ -452,14 +517,16 @@ def _handle_languages_section(
     lines: list[str], start_idx: int
 ) -> tuple[list[str], int]:
     """
-    Handle the languages section.
-
+    Parse the "Languages" section and return sanitized language entries.
+    
+    Collects lines after the section header, merges bullet-style entries (lines starting with "•") into single entries by concatenating continuation lines, treats each non-empty line as a separate entry when no bullets are present, filters out entries containing "linkedin.com" (case-insensitive), and applies final_sanitize to each entry.
+    
     Parameters:
         lines (list[str]): OCR'd lines from the document.
-        start_idx (int): Index of the section header.
-
+        start_idx (int): Index of the section header line to start parsing from.
+    
     Returns:
-        tuple[list[str], int]: List of language entries and next index.
+        tuple[list[str], int]: A tuple where the first element is the list of sanitized language entries and the second element is the index of the next unparsed line.
     """
     content, next_idx = _parse_generic_section(lines, start_idx)
     languages = []
@@ -501,14 +568,16 @@ def _handle_competencies_and_skills_section(
     lines: list[str], start_idx: int
 ) -> tuple[dict, int]:
     """
-    Handle the competencies and skills section.
-
+    Extract categorized skills from the competencies and skills section.
+    
+    Parses the section starting at start_idx, identifies skill blocks using configured skill keywords, and returns a mapping of sanitized category names to lists of sanitized skill values. Categories are expected to be followed by a colon; values are split on commas or semicolons.
+    
     Parameters:
         lines (list[str]): OCR'd lines from the document.
-        start_idx (int): Index of the section header.
-
+        start_idx (int): Index of the section header to begin parsing from.
+    
     Returns:
-        tuple[dict, int]: Dictionary of skill categories and next index.
+        tuple[dict, int]: A tuple where the first element is a dict mapping category (str) -> list of skill strings, and the second element is the index of the line immediately after the section.
     """
     content, next_idx = _parse_generic_section(lines, start_idx)
     _, skill_blocks = semantic_bullet_split(" ".join(content), SKILL_KEYWORDS)
@@ -526,15 +595,15 @@ def _handle_generic_fallback_section(
     lines: list[str], start_idx: int, _canonical_section: str
 ) -> tuple[list[str], int]:
     """
-    Handle generic sections using fallback logic.
-
+    Sanitize and return the collected lines for a non-specialized (fallback) section.
+    
+    This handler collects the raw section lines starting at start_idx, applies final_sanitize to each item, and returns the sanitized items with the index where parsing should continue.
+    
     Parameters:
-        lines (list[str]): OCR'd lines from the document.
-        start_idx (int): Index of the section header.
-        _canonical_section (str): The canonical section name (intentionally unused).
-
+        _canonical_section (str): Accepted for signature compatibility but intentionally unused.
+    
     Returns:
-        tuple[list[str], int]: List of sanitized items and next index.
+        tuple[list[str], int]: (sanitized_items, next_index) where `sanitized_items` is the list of sanitized section lines and `next_index` is the index of the first line after the section.
     """
     content, next_idx = _parse_generic_section(lines, start_idx)
     return [final_sanitize(item) for item in content], next_idx
@@ -542,22 +611,22 @@ def _handle_generic_fallback_section(
 
 def parse_cv_to_json(pdf_path: str):
     """
-    Parse a CV PDF and extract structured resume data as a JSON-serializable dictionary.
-
+    Parse a curriculum vitae PDF and extract structured resume data.
+    
     Parameters:
-        pdf_path (str): Path to the PDF file containing the CV.
-
+        pdf_path (str): Filesystem path to the CV PDF.
+    
     Returns:
-        dict: A mapping with the following keys:
-            - personal_info (dict): Extracted contact and identity fields (e.g., email, phone, date_of_birth, nationality, permit, address) where available.
-            - profile (str): Profile/summary text.
-            - strategic_impact (list[str]): Extracted strategic-impact bullet items.
-            - professional_experience (list[dict]): List of job entries; each entry may include `title`, `company`, `location`, `dates`, `description`, and `achievements`.
-            - certificates_and_training (list[str]): Items from certificates and training section.
-            - education (list[dict]): Education entries, typically containing `institution` and optionally `degree`.
-            - languages (list[str]): Language lines grouped into items (filtered and sanitized).
-            - competencies_and_skills (dict): Mapping of skill categories to lists of sanitized skill values.
-            - volunteering (list[str]): Volunteering entries.
+        dict: JSON-serializable mapping with keys:
+            - personal_info (dict): Contact and identity fields found near the top of the CV (e.g., `name`, `title`, `email`, `phone`, `date_of_birth`, `nationality`, `permit`, `address`) when available.
+            - profile (str): Sanitized profile or summary text.
+            - strategic_impact (list[str]): Strategic-impact bullet items extracted from the matching section.
+            - professional_experience (list[dict]): Parsed job entries; each entry may include `title`, `company`, `location`, `dates`, `description`, and `achievements`.
+            - certificates_and_training (list[str]): Lines from certificates and training section.
+            - education (list[dict]): Education entries typically containing `institution` and optionally `degree`.
+            - languages (list[str]): Language entries grouped and sanitized (LinkedIn links filtered).
+            - competencies_and_skills (dict): Mapping of skill category to list of sanitized skill values.
+            - volunteering (list[str]): Volunteering entries from the CV.
     """
     images = convert_from_path(pdf_path, dpi=300)
     raw_text = "\n".join([pt.image_to_string(img, lang="deu+eng") for img in images])
