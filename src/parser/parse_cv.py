@@ -38,9 +38,9 @@ def final_sanitize(text: str) -> str:
     if not text:
         return ""
 
-    # Apply OCR normalizations
-    text = re.sub(r"\bAl-", "AI-", text)
-    text = re.sub(r"\bAl\s", "AI ", text)
+    # Apply OCR normalizations - targeted "Al" → "AI" fixes for AI-related terms only
+    text = re.sub(r"\bAl-(?=GPT|Chat|Open|API|Model)", "AI-", text)
+    text = re.sub(r"\bAl (?=GPT|Chat|Open|API|Model)", "AI ", text)
     text = re.sub(r"OpenAl\b", "OpenAI", text)
     text = re.sub(r"[•©¢]", "", text)
 
