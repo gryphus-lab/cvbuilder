@@ -355,7 +355,22 @@ def _parse_personal_info(lines: list[str]) -> dict[str, str]:
 
 def _is_job_header(line: str) -> bool:
     """Check if a line looks like a job header with title, company, and dates."""
-    return "(" in line and line.endswith(")") and "," in line
+    if not ("(" in line and line.endswith(")") and "," in line):
+        return False
+
+    # Extract the content inside parentheses
+    start = line.rfind("(")
+    end = line.rfind(")")
+    if start == -1 or end == -1 or start >= end:
+        return False
+
+    date_part = line[start + 1 : end].strip()
+
+    # Check for date patterns: four-digit years or ranges
+    import re
+
+    date_pattern = re.compile(r"\d{4}")
+    return bool(date_pattern.search(date_part))
 
 
 def _parse_job_header(line: str) -> dict[str, str]:
@@ -364,10 +379,15 @@ def _parse_job_header(line: str) -> dict[str, str]:
     dates = dates_part[:-1].strip()
     header_parts = [part.strip() for part in header_part.split(",")]
 
+    # Defensively handle header_parts length
+    title = header_parts[0] if header_parts else header_part.strip()
+    company = header_parts[1] if len(header_parts) >= 2 else ""
+    location = final_sanitize(header_parts[2]) if len(header_parts) >= 3 else ""
+
     return {
-        "title": header_parts[0],
-        "company": header_parts[1],
-        "location": final_sanitize(header_parts[2]) if len(header_parts) >= 3 else "",
+        "title": title,
+        "company": company,
+        "location": location,
         "dates": dates,
     }
 
@@ -484,16 +504,16 @@ def _parse_comma_separated_education(
             "institution": sanitized_parts[0],
             "degree": sanitized_parts[1] if len(sanitized_parts) > 1 else "",
         }
-    elif part0_has_degree:
+    if part0_has_degree:
         return {
             "degree": sanitized_parts[0],
             "institution": sanitized_parts[1] if len(sanitized_parts) > 1 else "",
         }
 
-    # Fallback when neither flag is set
+    # Fallback when neither flag is set: treat whole entry as institution-only
     return {
-        "institution": sanitized_parts[0],
-        "degree": sanitized_parts[1] if len(sanitized_parts) > 1 else "",
+        "institution": " ".join(sanitized_parts),
+        "degree": "",
     }
 
 
@@ -578,23 +598,23 @@ def _parse_education_entry(item: str, degree_keywords: list[str]) -> dict[str, s
     sanitized = final_sanitize(item)
 
     # Handle comma-separated format
-    if "," in item:
-        return _parse_comma_separated_education(item, degree_keywords)
+    if "," in sanitized:
+        return _parse_comma_separated_education(sanitized, degree_keywords)
 
     # Handle dash-separated format
-    if " - " in item:
-        return _parse_dash_separated_education(item, degree_keywords)
+    if " - " in sanitized:
+        return _parse_dash_separated_education(sanitized, degree_keywords)
 
     # Handle degree-only entries
-    if _contains_degree_keyword(item, degree_keywords):
+    if _contains_degree_keyword(sanitized, degree_keywords):
         return _parse_degree_only_education(sanitized)
 
     # Handle institution-only entries (case-insensitive)
-    item_lower = item.lower()
+    sanitized_lower = sanitized.lower()
     if (
-        "institute" in item_lower
-        or "university" in item_lower
-        or "college" in item_lower
+        "institute" in sanitized_lower
+        or "university" in sanitized_lower
+        or "college" in sanitized_lower
     ):
         return _parse_institution_only_education(sanitized)
 

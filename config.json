@@ -49,6 +49,18 @@
     "M.Tech",
     "M.Sc",
     "PhD",
-    "Doctorate"
+    "Doctorate",
+    "BA",
+    "BS",
+    "MA",
+    "MS",
+    "MBA",
+    "Associate",
+    "Diploma",
+    "JD",
+    "MD",
+    "BBA",
+    "BCA",
+    "MCA"
   ]
 }
