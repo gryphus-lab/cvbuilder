@@ -261,6 +261,9 @@ def _parse_experience(lines: list[str], start_idx: int) -> tuple[list[dict], int
         - `description` (str): Leading descriptive text for the role (may be empty).
         - `achievements` (list[str]): Extracted achievement/keyword-led bullet segments (may be empty).
     """
+    # Job header pattern: matches lines like "Title, Company, Location (Dates)"
+    job_header_pattern = r"(.+?),\s*(.+?)(?:,\s*(.+?))?\s*\((.+?)\)"
+
     jobs = []
     i = start_idx + 1
 
@@ -269,7 +272,7 @@ def _parse_experience(lines: list[str], start_idx: int) -> tuple[list[dict], int
         if _is_header(line):
             break
 
-        job_match = re.search(r"(.+?),\s*(.+?)(?:,\s*(.+?))?\s*\((.+?)\)", line)
+        job_match = re.search(job_header_pattern, line)
 
         if job_match:
             job = {
@@ -289,7 +292,7 @@ def _parse_experience(lines: list[str], start_idx: int) -> tuple[list[dict], int
             while (
                 i < len(lines)
                 and not _is_header(lines[i])
-                and not re.search(r",.*\(?\d{2}/\d{4}", lines[i])
+                and not re.search(job_header_pattern, lines[i])
             ):
                 content_parts.append(lines[i].strip())
                 i += 1
