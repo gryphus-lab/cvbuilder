@@ -158,6 +158,47 @@ def _extract_address(line: str) -> Optional[str]:
     return None
 
 
+def _extract_name_and_title(lines: List[str], common_headers: set) -> Tuple[str, str]:
+    """
+    Extract name and title from the first few lines of the CV.
+
+    Parameters:
+        lines (List[str]): OCR'd lines from the document.
+        common_headers (set): Set of common section headers to skip.
+
+    Returns:
+        Tuple[str, str]: A tuple of (name, title).
+    """
+    name = ""
+    title = ""
+
+    for idx, line in enumerate(lines[:5]):
+        stripped = line.strip()
+        # Skip section headers using config-driven SECTION_HEADERS
+        line_upper = stripped.upper().rstrip(":")
+        is_heading = (
+            line_upper in common_headers
+            or stripped.endswith(":")
+            or any(word in common_headers for word in line_upper.split())
+            or any(line_upper.startswith(header) for header in common_headers)
+        )
+
+        if (
+            stripped
+            and not is_heading
+            and not re.search(r"@|Date of Birth|Nationality|Permit|\+\d{2}", stripped)
+        ):
+            # First line that doesn't look like contact info or header is likely the name
+            if not name:
+                name = stripped
+            elif not title and idx > 0:
+                # Second such line is likely the title/role
+                title = stripped
+                break
+
+    return name, title
+
+
 def _parse_personal_info(lines: List[str]) -> Dict[str, str]:
     """
     Extract personal contact and identity fields from the top of OCR'd lines.
@@ -172,61 +213,28 @@ def _parse_personal_info(lines: List[str]) -> Dict[str, str]:
     """
     info = {"name": "", "title": ""}
 
-    # Try to extract name from first non-empty line (before any detected fields)
-    for idx, line in enumerate(lines[:5]):
-        stripped = line.strip()
-        # Skip section headers using config-driven SECTION_HEADERS
-        line_upper = stripped.upper().rstrip(":")
-        is_heading = (
-            line_upper in SECTION_HEADERS
-            or stripped.endswith(":")
-            or any(word in SECTION_HEADERS for word in line_upper.split())
-            or any(line_upper.startswith(header) for header in SECTION_HEADERS)
-        )
+    # Extract name and title
+    name, title = _extract_name_and_title(lines, SECTION_HEADERS)
+    info["name"] = name
+    info["title"] = title
 
-        if (
-            stripped
-            and not is_heading
-            and not re.search(r"@|Date of Birth|Nationality|Permit|\+\d{2}", stripped)
-        ):
-            # First line that doesn't look like contact info or header is likely the name
-            if not info["name"]:
-                info["name"] = stripped
-            elif not info["title"] and idx > 0:
-                # Second such line is likely the title/role
-                info["title"] = stripped
-                break
+    # Define field extractors mapping
+    field_extractors = [
+        ("email", _extract_email),
+        ("phone", _extract_phone),
+        ("date_of_birth", _extract_dob),
+        ("nationality", _extract_nationality),
+        ("permit", _extract_permit),
+        ("address", _extract_address),
+    ]
 
+    # Extract fields using the mapping
     for line in lines[:20]:  # only top of document
-        if not info.get("email"):
-            email = _extract_email(line)
-            if email:
-                info["email"] = email
-
-        if not info.get("phone"):
-            phone = _extract_phone(line)
-            if phone:
-                info["phone"] = phone
-
-        if not info.get("date_of_birth"):
-            dob = _extract_dob(line)
-            if dob:
-                info["date_of_birth"] = dob
-
-        if not info.get("nationality"):
-            nationality = _extract_nationality(line)
-            if nationality:
-                info["nationality"] = nationality
-
-        if not info.get("permit"):
-            permit = _extract_permit(line)
-            if permit:
-                info["permit"] = permit
-
-        if not info.get("address"):
-            address = _extract_address(line)
-            if address:
-                info["address"] = address
+        for field_name, extractor_func in field_extractors:
+            if not info.get(field_name):
+                value = extractor_func(line)
+                if value:
+                    info[field_name] = value
 
     return info
 
@@ -401,16 +409,8 @@ def parse_cv_to_json(pdf_path: str):
                             deg_kw in sanitized_parts[1] for deg_kw in degree_keywords
                         )
 
-                        if part0_has_degree and not part1_has_degree:
-                            entry["degree"] = sanitized_parts[0]
-                            entry["institution"] = (
-                                sanitized_parts[1] if len(sanitized_parts) > 1 else ""
-                            )
-                        elif part1_has_degree and not part0_has_degree:
-                            entry["institution"] = sanitized_parts[0]
-                            entry["degree"] = sanitized_parts[1]
-                        elif degree_found:
-                            # Fallback to original heuristic when both or neither contain degree
+                        # Consolidate assignment logic
+                        if part0_has_degree or degree_found:
                             entry["degree"] = sanitized_parts[0]
                             entry["institution"] = (
                                 sanitized_parts[1] if len(sanitized_parts) > 1 else ""
