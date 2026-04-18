@@ -14,6 +14,7 @@ SECTION_HEADERS = CONFIG["section_headers"]
 ACHIEVEMENT_KEYWORDS = CONFIG["achievement_keywords"]
 SKILL_KEYWORDS = CONFIG["skill_keywords"]
 STRATEGIC_KEYWORDS = CONFIG["strategic_keywords"]
+DEGREE_KEYWORDS = CONFIG["degree_keywords"]
 
 LINKEDIN_KEYWORD = "linkedin.com"
 
@@ -352,6 +353,57 @@ def _parse_personal_info(lines: list[str]) -> dict[str, str]:
     return info
 
 
+def _is_job_header(line: str) -> bool:
+    """Check if a line looks like a job header with title, company, and dates."""
+    if not ("(" in line and line.endswith(")") and "," in line):
+        return False
+
+    # Extract the content inside parentheses
+    start = line.rfind("(")
+    end = line.rfind(")")
+    if start == -1 or end == -1 or start >= end:
+        return False
+
+    date_part = line[start + 1 : end].strip()
+
+    # Check for date patterns: four-digit years or ranges
+    import re
+
+    date_pattern = re.compile(r"\d{4}")
+    return bool(date_pattern.search(date_part))
+
+
+def _parse_job_header(line: str) -> dict[str, str]:
+    """Parse job header into title, company, location, dates."""
+    header_part, dates_part = line.rsplit("(", 1)
+    dates = dates_part[:-1].strip()
+    header_parts = [part.strip() for part in header_part.split(",")]
+
+    # Defensively handle header_parts length
+    title = header_parts[0] if header_parts else header_part.strip()
+    company = header_parts[1] if len(header_parts) >= 2 else ""
+    location = final_sanitize(header_parts[2]) if len(header_parts) >= 3 else ""
+
+    return {
+        "title": title,
+        "company": company,
+        "location": location,
+        "dates": dates,
+    }
+
+
+def _collect_job_content(lines: list[str], start_idx: int) -> tuple[list[str], int]:
+    """Collect content lines for a job until next header or job header."""
+    content_parts = []
+    i = start_idx
+    while i < len(lines):
+        if _is_header(lines[i]) or _is_job_header(lines[i].strip()):
+            break
+        content_parts.append(lines[i].strip())
+        i += 1
+    return content_parts, i
+
+
 def _parse_experience(lines: list[str], start_idx: int) -> tuple[list[dict], int]:
     """
     Parse professional experience entries from OCR lines starting immediately after the given section header index.
@@ -377,45 +429,25 @@ def _parse_experience(lines: list[str], start_idx: int) -> tuple[list[dict], int
         if _is_header(line):
             break
 
-        if "(" in line and line.endswith(")") and "," in line:
-            header_part, dates_part = line.rsplit("(", 1)
-            dates = dates_part[:-1].strip()
-            header_parts = [part.strip() for part in header_part.split(",")]
-
-            if len(header_parts) >= 2:
-                job = {
-                    "title": header_parts[0],
-                    "company": header_parts[1],
-                    "location": (
-                        final_sanitize(header_parts[2])
-                        if len(header_parts) >= 3
-                        else ""
-                    ),
-                    "dates": dates,
-                    "description": "",
-                    "achievements": [],
-                }
-                i += 1
-                content_parts = []
-                while (
-                    i < len(lines)
-                    and not _is_header(lines[i])
-                    and not (
-                        "(" in lines[i]
-                        and lines[i].strip().endswith(")")
-                        and "," in lines[i]
-                    )
-                ):
-                    content_parts.append(lines[i].strip())
-                    i += 1
-
-                desc, achs = semantic_bullet_split(
-                    " ".join(content_parts), ACHIEVEMENT_KEYWORDS
-                )
-                job["description"] = desc
-                job["achievements"] = achs
-                jobs.append(job)
-                continue
+        if _is_job_header(line):
+            job_data = _parse_job_header(line)
+            job = {
+                "title": job_data["title"],
+                "company": job_data["company"],
+                "location": job_data["location"],
+                "dates": job_data["dates"],
+                "description": "",
+                "achievements": [],
+            }
+            i += 1
+            content_parts, i = _collect_job_content(lines, i)
+            desc, achs = semantic_bullet_split(
+                " ".join(content_parts), ACHIEVEMENT_KEYWORDS
+            )
+            job["description"] = desc
+            job["achievements"] = achs
+            jobs.append(job)
+            continue
 
         i += 1
     return jobs, i
@@ -442,6 +474,110 @@ def _parse_generic_section(lines: list[str], start_idx: int) -> tuple[list[str],
     return items, i
 
 
+def _contains_degree_keyword(text: str, degree_keywords: list[str]) -> bool:
+    """Check if text contains any degree keyword using case-insensitive whole-word matching."""
+    text_lower = text.lower()
+    for deg_kw in degree_keywords:
+        # Use word-boundary regex for whole-word matching
+        pattern = r"\b" + re.escape(deg_kw.lower()) + r"\b"
+        if re.search(pattern, text_lower):
+            return True
+    return False
+
+
+def _parse_comma_separated_education(
+    item: str, degree_keywords: list[str]
+) -> dict[str, str]:
+    """Parse education entry with comma separator."""
+    parts = item.split(",", 1)
+    sanitized_parts = [final_sanitize(p) for p in parts]
+
+    # Compute boolean flags once
+    part0_has_degree = _contains_degree_keyword(sanitized_parts[0], degree_keywords)
+    part1_has_degree = len(sanitized_parts) > 1 and _contains_degree_keyword(
+        sanitized_parts[1], degree_keywords
+    )
+
+    # Three clear branches for degree detection
+    if part1_has_degree and not part0_has_degree:
+        return {
+            "institution": sanitized_parts[0],
+            "degree": sanitized_parts[1] if len(sanitized_parts) > 1 else "",
+        }
+    if part0_has_degree:
+        return {
+            "degree": sanitized_parts[0],
+            "institution": sanitized_parts[1] if len(sanitized_parts) > 1 else "",
+        }
+
+    # Fallback when neither flag is set: treat whole entry as institution-only
+    return {
+        "institution": " ".join(sanitized_parts),
+        "degree": "",
+    }
+
+
+def _parse_dash_separated_education(
+    item: str, degree_keywords: list[str]
+) -> dict[str, str]:
+    """Parse education entry with dash separator, detecting which side is degree vs institution."""
+    parts = item.split(" - ", 1)
+    if len(parts) < 2:
+        return {
+            "institution": final_sanitize(parts[0]),
+            "degree": "",
+        }
+
+    # Detect which part is the degree and which is the institution
+    part0_sanitized = final_sanitize(parts[0])
+    part1_sanitized = final_sanitize(parts[1])
+
+    # Check for degree keywords in each part using the shared helper
+    part0_has_degree = _contains_degree_keyword(part0_sanitized, degree_keywords)
+    part1_has_degree = _contains_degree_keyword(part1_sanitized, degree_keywords)
+
+    # Check for institution keywords
+    institution_patterns = [r"\bUniversity\b", r"\bCollege\b", r"\bInstitute\b"]
+
+    part0_has_institution = any(
+        re.search(pattern, part0_sanitized, re.IGNORECASE)
+        for pattern in institution_patterns
+    )
+    part1_has_institution = any(
+        re.search(pattern, part1_sanitized, re.IGNORECASE)
+        for pattern in institution_patterns
+    )
+
+    # If left side has degree markers and right side has institution markers, swap
+    if part0_has_degree and part1_has_institution:
+        return {
+            "degree": part0_sanitized,
+            "institution": part1_sanitized,
+        }
+    # If left side has institution markers and right side has degree markers, use as-is
+    if part0_has_institution and part1_has_degree:
+        return {
+            "institution": part0_sanitized,
+            "degree": part1_sanitized,
+        }
+
+    # Default: assume left is institution, right is degree (original behavior)
+    return {
+        "institution": part0_sanitized,
+        "degree": part1_sanitized,
+    }
+
+
+def _parse_degree_only_education(sanitized: str) -> dict[str, str]:
+    """Parse education entry that contains only degree information."""
+    return {"institution": "", "degree": sanitized}
+
+
+def _parse_institution_only_education(sanitized: str) -> dict[str, str]:
+    """Parse education entry that contains only institution information."""
+    return {"institution": sanitized, "degree": ""}
+
+
 def _parse_education_entry(item: str, degree_keywords: list[str]) -> dict[str, str]:
     """
     Parse a single education line into institution and degree components.
@@ -460,62 +596,30 @@ def _parse_education_entry(item: str, degree_keywords: list[str]) -> dict[str, s
             - 'degree': The detected degree text (or empty string if not found).
     """
     sanitized = final_sanitize(item)
-    entry = {"institution": "", "degree": ""}
 
-    # Try to detect degree keywords
-    degree_found = ""
-    for deg_kw in degree_keywords:
-        if deg_kw in item:
-            degree_found = sanitized
-            break
+    # Handle comma-separated format
+    if "," in sanitized:
+        return _parse_comma_separated_education(sanitized, degree_keywords)
 
-    # Try to split by common separators
-    if "," in item:
-        parts = item.split(",", 1)
-        sanitized_parts = [final_sanitize(p) for p in parts]
-        # Check which part contains the degree keyword
-        part0_has_degree = any(
-            deg_kw in sanitized_parts[0] for deg_kw in degree_keywords
-        )
-        part1_has_degree = len(sanitized_parts) > 1 and any(
-            deg_kw in sanitized_parts[1] for deg_kw in degree_keywords
-        )
+    # Handle dash-separated format
+    if " - " in sanitized:
+        return _parse_dash_separated_education(sanitized, degree_keywords)
 
-        # Consolidate assignment logic
-        if part0_has_degree and not part1_has_degree:
-            # Case 1: Degree is in sanitized_parts[0]
-            entry["degree"] = sanitized_parts[0]
-            entry["institution"] = (
-                sanitized_parts[1] if len(sanitized_parts) > 1 else ""
-            )
-        elif part1_has_degree and not part0_has_degree:
-            # Case 2: Degree is in sanitized_parts[1]
-            entry["institution"] = sanitized_parts[0]
-            entry["degree"] = sanitized_parts[1] if len(sanitized_parts) > 1 else ""
-        elif degree_found:
-            # Case 3: Degree found but neither part has degree detected
-            entry["degree"] = sanitized_parts[0]
-            entry["institution"] = (
-                sanitized_parts[1] if len(sanitized_parts) > 1 else ""
-            )
-        else:
-            # Case 4: No degree detected, assume institution comes first
-            entry["institution"] = sanitized_parts[0]
-            entry["degree"] = sanitized_parts[1] if len(sanitized_parts) > 1 else ""
-    elif " - " in item:
-        parts = item.split(" - ", 1)
-        entry["institution"] = final_sanitize(parts[0])
-        entry["degree"] = final_sanitize(parts[1]) if len(parts) > 1 else ""
-    elif degree_found:
-        # No separator found and degree detected
-        entry["degree"] = sanitized
-    elif "Institute" in item or "University" in item or "College" in item:
-        entry["institution"] = sanitized
-    else:
-        # Fallback: use the whole line as institution
-        entry["institution"] = sanitized
+    # Handle degree-only entries
+    if _contains_degree_keyword(sanitized, degree_keywords):
+        return _parse_degree_only_education(sanitized)
 
-    return entry
+    # Handle institution-only entries (case-insensitive)
+    sanitized_lower = sanitized.lower()
+    if (
+        "institute" in sanitized_lower
+        or "university" in sanitized_lower
+        or "college" in sanitized_lower
+    ):
+        return _parse_institution_only_education(sanitized)
+
+    # Fallback: treat whole line as institution
+    return _parse_institution_only_education(sanitized)
 
 
 def _handle_profile_section(lines: list[str], start_idx: int) -> tuple[str, int]:
@@ -563,20 +667,33 @@ def _handle_education_section(
         tuple[list[dict], int]: A tuple where the first element is a list of education entry dictionaries (each contains at minimum "institution" and "degree") and the second element is the index of the line immediately after the parsed section.
     """
     content, next_idx = _parse_generic_section(lines, start_idx)
-    degree_keywords = [
-        "Bachelor",
-        "Master",
-        "B.Tech",
-        "B.Sc",
-        "M.Tech",
-        "M.Sc",
-        "PhD",
-        "Doctorate",
-    ]
     education_entries = [
-        _parse_education_entry(item, degree_keywords) for item in content
+        _parse_education_entry(item, DEGREE_KEYWORDS) for item in content
     ]
     return education_entries, next_idx
+
+
+def _process_bullet_line(
+    line: str, current: str | None, languages: list[str]
+) -> str | None:
+    """Process a bullet line, returning the new current language or None."""
+    line_without_bullet = re.sub(r"^\s*•\s*", "", line).strip()
+    sanitized_text = final_sanitize(line_without_bullet)
+    if sanitized_text and LINKEDIN_KEYWORD not in sanitized_text.lower():
+        if current:
+            languages.append(current)
+        return sanitized_text
+    return current
+
+
+def _process_non_bullet_line(line: str, current: str | None) -> str | None:
+    """Process a non-bullet line, appending to current if valid."""
+    sanitized_text = final_sanitize(line)
+    if sanitized_text and LINKEDIN_KEYWORD not in sanitized_text.lower():
+        if current:
+            return current + " " + sanitized_text
+        return sanitized_text
+    return current
 
 
 def _parse_bulleted_languages(
@@ -600,19 +717,10 @@ def _parse_bulleted_languages(
 
     for original_line in content:
         if original_line.startswith("•"):
-            line_without_bullet = re.sub(r"^\s*•\s*", "", original_line).strip()
-            sanitized_text = final_sanitize(line_without_bullet)
-            if sanitized_text and LINKEDIN_KEYWORD not in sanitized_text.lower():
-                if current:
-                    languages.append(current)
-                current = sanitized_text
+            current = _process_bullet_line(original_line, current, languages)
         else:
-            sanitized_text = final_sanitize(original_line)
-            if sanitized_text and LINKEDIN_KEYWORD not in sanitized_text.lower():
-                if current:
-                    current += " " + sanitized_text
-                else:
-                    current = sanitized_text
+            current = _process_non_bullet_line(original_line, current)
+
     if current:
         languages.append(current)
 
