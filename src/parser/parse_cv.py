@@ -442,6 +442,64 @@ def _parse_generic_section(lines: list[str], start_idx: int) -> tuple[list[str],
     return items, i
 
 
+def _contains_degree_keyword(text: str, degree_keywords: list[str]) -> bool:
+    """Check if text contains any degree keyword."""
+    return any(deg_kw in text for deg_kw in degree_keywords)
+
+
+def _parse_comma_separated_education(
+    item: str, degree_keywords: list[str]
+) -> dict[str, str]:
+    """Parse education entry with comma separator."""
+    parts = item.split(",", 1)
+    sanitized_parts = [final_sanitize(p) for p in parts]
+
+    part0_has_degree = _contains_degree_keyword(sanitized_parts[0], degree_keywords)
+    part1_has_degree = len(sanitized_parts) > 1 and _contains_degree_keyword(
+        sanitized_parts[1], degree_keywords
+    )
+
+    if part0_has_degree and not part1_has_degree:
+        return {
+            "degree": sanitized_parts[0],
+            "institution": sanitized_parts[1] if len(sanitized_parts) > 1 else "",
+        }
+    elif part1_has_degree and not part0_has_degree:
+        return {
+            "institution": sanitized_parts[0],
+            "degree": sanitized_parts[1] if len(sanitized_parts) > 1 else "",
+        }
+    elif _contains_degree_keyword(item, degree_keywords):
+        return {
+            "degree": sanitized_parts[0],
+            "institution": sanitized_parts[1] if len(sanitized_parts) > 1 else "",
+        }
+    else:
+        return {
+            "institution": sanitized_parts[0],
+            "degree": sanitized_parts[1] if len(sanitized_parts) > 1 else "",
+        }
+
+
+def _parse_dash_separated_education(item: str) -> dict[str, str]:
+    """Parse education entry with dash separator."""
+    parts = item.split(" - ", 1)
+    return {
+        "institution": final_sanitize(parts[0]),
+        "degree": final_sanitize(parts[1]) if len(parts) > 1 else "",
+    }
+
+
+def _parse_degree_only_education(sanitized: str) -> dict[str, str]:
+    """Parse education entry that contains only degree information."""
+    return {"institution": "", "degree": sanitized}
+
+
+def _parse_institution_only_education(sanitized: str) -> dict[str, str]:
+    """Parse education entry that contains only institution information."""
+    return {"institution": sanitized, "degree": ""}
+
+
 def _parse_education_entry(item: str, degree_keywords: list[str]) -> dict[str, str]:
     """
     Parse a single education line into institution and degree components.
@@ -460,62 +518,25 @@ def _parse_education_entry(item: str, degree_keywords: list[str]) -> dict[str, s
             - 'degree': The detected degree text (or empty string if not found).
     """
     sanitized = final_sanitize(item)
-    entry = {"institution": "", "degree": ""}
 
-    # Try to detect degree keywords
-    degree_found = ""
-    for deg_kw in degree_keywords:
-        if deg_kw in item:
-            degree_found = sanitized
-            break
-
-    # Try to split by common separators
+    # Handle comma-separated format
     if "," in item:
-        parts = item.split(",", 1)
-        sanitized_parts = [final_sanitize(p) for p in parts]
-        # Check which part contains the degree keyword
-        part0_has_degree = any(
-            deg_kw in sanitized_parts[0] for deg_kw in degree_keywords
-        )
-        part1_has_degree = len(sanitized_parts) > 1 and any(
-            deg_kw in sanitized_parts[1] for deg_kw in degree_keywords
-        )
+        return _parse_comma_separated_education(item, degree_keywords)
 
-        # Consolidate assignment logic
-        if part0_has_degree and not part1_has_degree:
-            # Case 1: Degree is in sanitized_parts[0]
-            entry["degree"] = sanitized_parts[0]
-            entry["institution"] = (
-                sanitized_parts[1] if len(sanitized_parts) > 1 else ""
-            )
-        elif part1_has_degree and not part0_has_degree:
-            # Case 2: Degree is in sanitized_parts[1]
-            entry["institution"] = sanitized_parts[0]
-            entry["degree"] = sanitized_parts[1] if len(sanitized_parts) > 1 else ""
-        elif degree_found:
-            # Case 3: Degree found but neither part has degree detected
-            entry["degree"] = sanitized_parts[0]
-            entry["institution"] = (
-                sanitized_parts[1] if len(sanitized_parts) > 1 else ""
-            )
-        else:
-            # Case 4: No degree detected, assume institution comes first
-            entry["institution"] = sanitized_parts[0]
-            entry["degree"] = sanitized_parts[1] if len(sanitized_parts) > 1 else ""
-    elif " - " in item:
-        parts = item.split(" - ", 1)
-        entry["institution"] = final_sanitize(parts[0])
-        entry["degree"] = final_sanitize(parts[1]) if len(parts) > 1 else ""
-    elif degree_found:
-        # No separator found and degree detected
-        entry["degree"] = sanitized
-    elif "Institute" in item or "University" in item or "College" in item:
-        entry["institution"] = sanitized
-    else:
-        # Fallback: use the whole line as institution
-        entry["institution"] = sanitized
+    # Handle dash-separated format
+    if " - " in item:
+        return _parse_dash_separated_education(item)
 
-    return entry
+    # Handle degree-only entries
+    if _contains_degree_keyword(item, degree_keywords):
+        return _parse_degree_only_education(sanitized)
+
+    # Handle institution-only entries
+    if "Institute" in item or "University" in item or "College" in item:
+        return _parse_institution_only_education(sanitized)
+
+    # Fallback: treat whole line as institution
+    return _parse_institution_only_education(sanitized)
 
 
 def _handle_profile_section(lines: list[str], start_idx: int) -> tuple[str, int]:
