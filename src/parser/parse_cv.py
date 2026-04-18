@@ -206,6 +206,8 @@ def _extract_header_language_entries(line: str) -> list[str] | None:
 
     Returns a list of parsed language entries when the line contains an explicit language label. Returns None when no header language content is detected.
     """
+    # The EN DASH (–) is deliberately included here to match OCR and typographic dash variants.
+    # Do not remove it, as it is intentionally used for real-world input variations.
     match = re.search(r"(?i)\b(languages|sprache|sprachen)\b\s*[:\-–]?\s*(.+)$", line)
     if not match:
         return None
@@ -333,9 +335,10 @@ def _looks_like_address(line: str) -> bool:
                 "transformation",
                 "leader",
             )
-            if not any(term in normalized for term in bad_terms):
-                if all(re.search(r"[a-z]", seg) for seg in segments):
-                    return True
+            if not any(term in normalized for term in bad_terms) and all(
+                re.search(r"[a-z]", seg) for seg in segments
+            ):
+                return True
 
     if normalized.startswith("st ") or normalized.endswith(" st"):
         return True
@@ -1020,9 +1023,7 @@ def parse_cv_to_json(pdf_path: str):
 
     # Preserve any header language entries when no dedicated LANGUAGES section is present.
     if header_languages and not cv_data["languages"]:
-        for lang in header_languages:
-            if lang not in cv_data["languages"]:
-                cv_data["languages"].append(lang)
+        cv_data["languages"].extend(header_languages)
 
     return cv_data
 
