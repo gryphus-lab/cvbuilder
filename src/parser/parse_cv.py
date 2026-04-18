@@ -110,17 +110,20 @@ def _extract_email(line: str) -> Optional[str]:
 
 def _extract_phone(line: str) -> Optional[str]:
     """Extract phone number from a line."""
-    # Match international E.164-style phone numbers with flexible separators
-    # Lookahead ensures at least 7-15 digits are present before normalization
+    # Match international E.164-style phone numbers with explicit prefix (+ or 00)
+    # Only match strings that start with + or 00, followed by digits with optional separators
     phone_match = re.search(
-        r"(?=(?:.*\d){7,15})(?:\+[\d]{1,3})?[\d\s\-().]{7,18}", line
+        r"(?:\+|00)[\d\s\-().]{7,18}", line
     )
     if phone_match:
-        # Normalize by removing spaces, dashes, and parentheses while preserving the leading +
+        # Normalize by removing spaces, dashes, parentheses, and dots
         phone = phone_match.group(0)
         normalized = re.sub(r"[\s\-().]", "", phone)
-        # Validate that the normalized number has 7-15 digits, optionally with leading +
-        if re.match(r"(?:\+)?\d{7,15}$", normalized):
+        # Prepend + if the number starts with 00
+        if normalized.startswith("00"):
+            normalized = "+" + normalized[2:]
+        # Validate E.164 style: must start with + followed by 7-15 digits
+        if re.match(r"\+\d{7,15}$", normalized):
             return normalized
     return None
 
