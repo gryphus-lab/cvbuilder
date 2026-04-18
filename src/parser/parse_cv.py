@@ -443,8 +443,14 @@ def _parse_generic_section(lines: list[str], start_idx: int) -> tuple[list[str],
 
 
 def _contains_degree_keyword(text: str, degree_keywords: list[str]) -> bool:
-    """Check if text contains any degree keyword."""
-    return any(deg_kw in text for deg_kw in degree_keywords)
+    """Check if text contains any degree keyword using case-insensitive whole-word matching."""
+    text_lower = text.lower()
+    for deg_kw in degree_keywords:
+        # Use word-boundary regex for whole-word matching
+        pattern = r'\b' + re.escape(deg_kw.lower()) + r'\b'
+        if re.search(pattern, text_lower):
+            return True
+    return False
 
 
 def _parse_comma_separated_education(
@@ -464,7 +470,7 @@ def _parse_comma_separated_education(
             "degree": sanitized_parts[0],
             "institution": sanitized_parts[1] if len(sanitized_parts) > 1 else "",
         }
-    elif part1_has_degree and not part0_has_degree:
+    if part1_has_degree and not part0_has_degree:
         return {
             "institution": sanitized_parts[0],
             "degree": sanitized_parts[1] if len(sanitized_parts) > 1 else "",
@@ -482,11 +488,53 @@ def _parse_comma_separated_education(
 
 
 def _parse_dash_separated_education(item: str) -> dict[str, str]:
-    """Parse education entry with dash separator."""
+    """Parse education entry with dash separator, detecting which side is degree vs institution."""
     parts = item.split(" - ", 1)
+    if len(parts) < 2:
+        return {
+            "institution": final_sanitize(parts[0]),
+            "degree": "",
+        }
+
+    # Detect which part is the degree and which is the institution
+    part0_sanitized = final_sanitize(parts[0])
+    part1_sanitized = final_sanitize(parts[1])
+
+    # Check for common degree patterns in each part
+    degree_patterns = [
+        r'\bPhD\b', r'\bBSc\b', r'\bMSc\b', r'\bMBA\b',
+        r'\bBachelor\b', r'\bMaster\b', r'\bDoctor\b',
+        r'\bB\.Tech\b', r'\bM\.Tech\b', r'\bB\.Sc\b', r'\bM\.Sc\b',
+        r'\bDoctorate\b'
+    ]
+
+    institution_patterns = [
+        r'\bUniversity\b', r'\bCollege\b', r'\bInstitute\b'
+    ]
+
+    part0_has_degree = any(re.search(pattern, part0_sanitized, re.IGNORECASE) for pattern in degree_patterns)
+    part1_has_degree = any(re.search(pattern, part1_sanitized, re.IGNORECASE) for pattern in degree_patterns)
+
+    part0_has_institution = any(re.search(pattern, part0_sanitized, re.IGNORECASE) for pattern in institution_patterns)
+    part1_has_institution = any(re.search(pattern, part1_sanitized, re.IGNORECASE) for pattern in institution_patterns)
+
+    # If left side has degree markers and right side has institution markers, swap
+    if part0_has_degree and part1_has_institution:
+        return {
+            "degree": part0_sanitized,
+            "institution": part1_sanitized,
+        }
+    # If left side has institution markers and right side has degree markers, use as-is
+    if part0_has_institution and part1_has_degree:
+        return {
+            "institution": part0_sanitized,
+            "degree": part1_sanitized,
+        }
+
+    # Default: assume left is institution, right is degree (original behavior)
     return {
-        "institution": final_sanitize(parts[0]),
-        "degree": final_sanitize(parts[1]) if len(parts) > 1 else "",
+        "institution": part0_sanitized,
+        "degree": part1_sanitized,
     }
 
 
