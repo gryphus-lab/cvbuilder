@@ -460,40 +460,40 @@ def _parse_comma_separated_education(
     parts = item.split(",", 1)
     sanitized_parts = [final_sanitize(p) for p in parts]
 
+    # Compute boolean flags once
     part0_has_degree = _contains_degree_keyword(sanitized_parts[0], degree_keywords)
     part1_has_degree = len(sanitized_parts) > 1 and _contains_degree_keyword(
         sanitized_parts[1], degree_keywords
     )
+    item_has_degree = _contains_degree_keyword(item, degree_keywords)
 
-    # Check both parts first
+    # Use flat sequence of early returns
     if part0_has_degree and not part1_has_degree:
         return {
             "degree": sanitized_parts[0],
             "institution": sanitized_parts[1] if len(sanitized_parts) > 1 else "",
         }
+
     if part1_has_degree and not part0_has_degree:
         return {
             "institution": sanitized_parts[0],
             "degree": sanitized_parts[1] if len(sanitized_parts) > 1 else "",
         }
 
-    # Neither part individually has degree keyword, check the whole item
-    if _contains_degree_keyword(item, degree_keywords):
-        # Re-check which sanitized part actually contains the keyword
-        if _contains_degree_keyword(sanitized_parts[0], degree_keywords):
+    if item_has_degree:
+        # Resolve which sanitized part contains the keyword
+        if part0_has_degree:
             return {
                 "degree": sanitized_parts[0],
                 "institution": sanitized_parts[1] if len(sanitized_parts) > 1 else "",
             }
-        elif len(sanitized_parts) > 1 and _contains_degree_keyword(
-            sanitized_parts[1], degree_keywords
-        ):
+        if part1_has_degree:
             return {
                 "institution": sanitized_parts[0],
                 "degree": sanitized_parts[1],
             }
 
-    # No degree keyword found, use default mapping
+    # Default mapping when no degree keyword found
     return {
         "institution": sanitized_parts[0],
         "degree": sanitized_parts[1] if len(sanitized_parts) > 1 else "",
