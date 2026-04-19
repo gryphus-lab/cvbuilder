@@ -222,7 +222,7 @@ def test_render_html_contains_personal_identity_info(builder, sample_cv_data):
 
     html = builder._render_html(sample_cv_data)
 
-    assert "DOB: 10.03.1985" in html
+    assert "Date of Birth: 10.03.1985" in html
     assert "Nationality: Swiss" in html
     assert "Permit: C" in html
 
