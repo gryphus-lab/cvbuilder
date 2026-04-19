@@ -209,7 +209,7 @@ class CVBuilder:
 
                 {% set identity_parts = [] %}
                 {% if cv.personal_info.date_of_birth %}
-                    {% set identity_parts = identity_parts + ['DOB: ' ~ cv.personal_info.date_of_birth] %}
+                    {% set identity_parts = identity_parts + ['Date of Birth: ' ~ cv.personal_info.date_of_birth] %}
                 {% endif %}
                 {% if cv.personal_info.nationality %}
                     {% set identity_parts = identity_parts + ['Nationality: ' ~ cv.personal_info.nationality] %}

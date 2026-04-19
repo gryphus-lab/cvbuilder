@@ -216,9 +216,7 @@ def _extract_header_language_entries(line: str) -> list[str] | None:
     if len(line) > 1024:
         return None
 
-    # The EN DASH (–) is deliberately included here to match OCR and typographic dash variants.
-    # Do not remove it, as it is intentionally used for real-world input variations.
-    match = re.search(r"(?i)\b(?:languages|sprache|sprachen)\b\s*[:\-–]?\s*(.+)$", line)
+    match = re.search(r"(?i)\b(?:languages|sprache|sprachen)\b\s*:?\s*(.+)$", line)
     if not match:
         return None
 
