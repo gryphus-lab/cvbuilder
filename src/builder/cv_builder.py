@@ -88,10 +88,10 @@ class CVBuilder:
     <style>
         @page { size: A4; margin: 1.8cm 1.5cm; }
         body {
-            font-family: "Calibri", regular, sans-serif;
+            font-family: "Arial", sans-serif;
             font-size: 11pt;
             line-height: 1.25;
-            color: #00000;
+            color: #000000;
         }
         .header {
             display: flex;
@@ -102,19 +102,19 @@ class CVBuilder:
             padding-bottom: 12px;
         }
         .header-left h1 {
-            font-family: "Calibri", regular, sans-serif;
+            font-family: "Arial", sans-serif;
             font-size: 24pt;
             margin: 0 0 4px 0;
             color: #000000;
         }
         .header-left h2 {
-            font-family: "Calibri", regular, sans-serif;
+            font-family: "Arial", sans-serif;
             font-size: 14pt;
             margin: 0;
             color: #000000;
         }
         .contact {
-            font-family: "Calibri", monospace, sans-serif;
+            font-family: "Arial", Helvetica, sans-serif;
             font-size: 9.5pt;
             margin-top: 8px;
             color: #333;
@@ -126,7 +126,7 @@ class CVBuilder:
         .photo img { width: 84px; height: 112px; }
 
         h2.section {
-            font-family: "Calibri", regular, sans-serif;
+            font-family: "Arial", sans-serif;
             font-size: 11pt;
             color: #000000;
             border-bottom: 2px solid #000000;
@@ -137,26 +137,11 @@ class CVBuilder:
         .job {
             margin-bottom: 11px;
         }
-        .job-title {
-            font-family: "Calibri", regular, sans-serif;
+        .job-header {
+            font-family: "Arial", sans-serif;
             font-weight: bold;
             font-size: 11pt;
-        }
-        .job-company {
-            font-family: "Calibri", regular, sans-serif;
-            font-weight: 500;
-        }
-        .job-location {
-                    font-family: "Calibri", regular, sans-serif;
-
-            color: #555;
-            font-size: 11pt;
-        }
-        .job-dates {
-            float: right;
-            font-size: 11pt;
-            font-family: "Calibri", regular, sans-serif;
-
+            margin-bottom: 4px;
         }
 
         ul {
@@ -168,7 +153,7 @@ class CVBuilder:
         }
 
         .category {
-            font-family: "Calibri", regular, sans-serif;
+            font-family: "Arial", sans-serif;
             font-weight: bold;
             margin-top: 12px;
             margin-bottom: 4px;
@@ -176,7 +161,7 @@ class CVBuilder:
         }
 
         .footer {
-            font-family: "Calibri", regular, sans-serif;
+            font-family: "Arial", sans-serif;
             text-align: right;
             font-size: 9pt;
             color: #777;
@@ -209,7 +194,7 @@ class CVBuilder:
 
                 {% set identity_parts = [] %}
                 {% if cv.personal_info.date_of_birth %}
-                    {% set identity_parts = identity_parts + ['DOB: ' ~ cv.personal_info.date_of_birth] %}
+                    {% set identity_parts = identity_parts + ['Date of Birth: ' ~ cv.personal_info.date_of_birth] %}
                 {% endif %}
                 {% if cv.personal_info.nationality %}
                     {% set identity_parts = identity_parts + ['Nationality: ' ~ cv.personal_info.nationality] %}
@@ -245,11 +230,9 @@ class CVBuilder:
     <h2 class="section">PROFESSIONAL EXPERIENCE</h2>
     {% for job in cv.professional_experience %}
     <div class="job">
-        <span class="job-title">{{ job.title }}</span>
-        {% if job.company %}, <span class="job-company">{{ job.company }}</span>{% endif %}
-        {% if job.location %}, <span class="job-location">{{ job.location }}</span>{% endif %}
-        <span class="job-dates">{{ job.dates }}</span>
-        
+        <div class="job-header">
+            {{ [job.dates|default(''), job.title|default(''), job.company|default(''), job.location|default('')] | join(' | ') }}
+        </div>
         {% if job.description %}
         <p>{{ job.description }}</p>
         {% endif %}

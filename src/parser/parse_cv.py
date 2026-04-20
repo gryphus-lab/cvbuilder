@@ -52,15 +52,16 @@ def final_sanitize(text: str) -> str:
 
     # Apply OCR normalizations - targeted "Al" → "AI" fixes for AI-related terms only
     text = re.sub(
-        r"(?i)\bAl-(?=GPT|Chat|Open|API|Model|powered|based|driven|generated|ML)",
+        r"(?i)\bAl-(?=GPT|Chat|Open|API|Model|powered|based|driven|generated|ML|Augmented|Efficiency)",
         "AI-",
         text,
     )
     text = re.sub(
-        r"(?i)\bAl (?=GPT|Chat|Open|API|Model|powered|based|driven|generated|ML)",
+        r"(?i)\bAl (?=GPT|Chat|Open|API|Model|powered|based|driven|generated|ML|Augmented|Efficiency)",
         "AI ",
         text,
     )
+    text = re.sub(r"(?i)\bAlEfficiency\b", "AI Efficiency", text)
     text = re.sub(r"OpenAl\b", "OpenAI", text)
     text = re.sub(r"[•©¢]", "", text)
 
@@ -99,19 +100,38 @@ def semantic_bullet_split(text: str, keywords: list) -> tuple[str, list[str]]:
     if not text:
         return "", []
 
-    pattern = rf"(?:\.|\s|^)({'|'.join([re.escape(k) for k in keywords])})\s*:"
+    # Sanitize the text first to correct OCR artifacts
+    text = final_sanitize(text)
 
-    parts = re.split(pattern, text)
+    keyword_pattern = "|".join(re.escape(k) for k in keywords)
+    pattern = (
+        rf"\b({keyword_pattern})\b\s*:(.*?)(?=(?:\b(?:{keyword_pattern})\b\s*:)|$)"
+    )
 
-    lead_in = final_sanitize(parts[0])
+    matches = list(re.finditer(pattern, text, re.DOTALL))
     bullets = []
+    seen_bullets = set()
+    remove_spans = []
 
-    for i in range(1, len(parts), 2):
-        kw = parts[i]
-        content = parts[i + 1] if i + 1 < len(parts) else ""
-        bullet_full = final_sanitize(f"{kw}: {content}")
-        if len(bullet_full) > len(kw) + 5:
+    for match in matches:
+        kw_matched = match.group(1)
+        content = match.group(2).strip()
+        bullet_full = f"{kw_matched}: {content}"
+        if len(bullet_full) > len(kw_matched) + 5 and bullet_full not in seen_bullets:
             bullets.append(bullet_full)
+            seen_bullets.add(bullet_full)
+        remove_spans.append(match.span())
+
+    if remove_spans:
+        lead_parts = []
+        last_index = 0
+        for start, end in remove_spans:
+            lead_parts.append(text[last_index:start])
+            last_index = end
+        lead_parts.append(text[last_index:])
+        lead_in = "".join(lead_parts).strip()
+    else:
+        lead_in = text.strip()
 
     return lead_in, bullets
 
@@ -216,9 +236,9 @@ def _extract_header_language_entries(line: str) -> list[str] | None:
     if len(line) > 1024:
         return None
 
-    # The EN DASH (–) is deliberately included here to match OCR and typographic dash variants.
-    # Do not remove it, as it is intentionally used for real-world input variations.
-    match = re.search(r"(?i)\b(?:languages|sprache|sprachen)\b\s*[:\-–]?\s*(.+)$", line)
+    match = re.search(
+        r"(?i)\b(?:languages|sprache|sprachen)\b\s*(?:[:\-\u2013\u2014]\s*)?(.+)$", line
+    )
     if not match:
         return None
 
@@ -529,32 +549,67 @@ def _parse_personal_info(lines: list[str]) -> dict[str, str]:
 
 
 def _is_job_header(line: str) -> bool:
-    """Check if a line looks like a job header with title, company, and dates."""
-    if not ("(" in line and line.endswith(")") and "," in line):
+    """Check if a line looks like a job header with dates, title, company, and location."""
+    stripped = line.strip()
+    if not stripped:
         return False
 
-    # Extract the content inside parentheses
-    start = line.rfind("(")
-    end = line.rfind(")")
-    if start == -1 or end == -1 or start >= end:
+    pipe_style = "|" in stripped
+    paren_style = "(" in stripped and stripped.endswith(")") and "," in stripped
+
+    if not pipe_style and not paren_style:
         return False
 
-    date_part = line[start + 1 : end].strip()
+    dash = r"[\u002d\u2013\u2014]"
+    date_pattern = re.compile(
+        rf"\d{{1,2}}/\d{{4}}\s*{dash}\s*(?:\d{{1,2}}/\d{{4}}|Present)|\d{{4}}\s*{dash}\s*(?:\d{{4}}|Present)",
+        re.IGNORECASE,
+    )
+    return bool(date_pattern.search(stripped))
 
-    # Check for date patterns: four-digit years or ranges
-    import re
 
-    date_pattern = re.compile(r"\d{4}")
-    return bool(date_pattern.search(date_part))
+def _parse_job_header_pipe_style(stripped: str) -> dict[str, str]:
+    """
+    Parse job header in pipe-separated format: dates | title | company | location.
+
+    Parameters:
+        stripped (str): The trimmed job header line containing pipe separators.
+
+    Returns:
+        dict[str, str]: Mapping with keys 'dates', 'title', 'company', 'location'.
+    """
+    parts = [part.strip() for part in stripped.split("|")]
+
+    # Positional, best-effort mapping: dates → title → company → location
+    dates = parts[0] if len(parts) >= 1 and parts[0] else ""
+    title = parts[1] if len(parts) >= 2 and parts[1] else ""
+    company = parts[2] if len(parts) >= 3 and parts[2] else ""
+    location = parts[3] if len(parts) >= 4 and parts[3] else ""
+
+    return {
+        "title": title,
+        "company": company,
+        "location": location,
+        "dates": dates,
+    }
 
 
-def _parse_job_header(line: str) -> dict[str, str]:
-    """Parse job header into title, company, location, dates."""
-    header_part, dates_part = line.rsplit("(", 1)
-    dates = dates_part[:-1].strip()
+def _parse_job_header_parenthesized(stripped: str) -> dict[str, str]:
+    """
+    Parse job header in parenthesized format: title, company, location (dates).
+
+    Parameters:
+        stripped (str): The trimmed job header line with dates in trailing parentheses.
+
+    Returns:
+        dict[str, str]: Mapping with keys 'dates', 'title', 'company', 'location'.
+    """
+    header_part = stripped
+    dates = ""
+    if "(" in stripped:
+        header_part, dates_part = stripped.rsplit("(", 1)
+        dates = dates_part[:-1].strip()
     header_parts = [part.strip() for part in header_part.split(",")]
-
-    # Defensively handle header_parts length
     title = header_parts[0] if header_parts else header_part.strip()
     company = header_parts[1] if len(header_parts) >= 2 else ""
     location = final_sanitize(header_parts[2]) if len(header_parts) >= 3 else ""
@@ -565,6 +620,24 @@ def _parse_job_header(line: str) -> dict[str, str]:
         "location": location,
         "dates": dates,
     }
+
+
+def _parse_job_header(line: str) -> dict[str, str]:
+    """
+    Parse job header into title, company, location, dates.
+
+    Dispatches to pipe-separated or parenthesized helper based on format detection.
+
+    Parameters:
+        line (str): Raw job header line from OCR output.
+
+    Returns:
+        dict[str, str]: Mapping with keys 'dates', 'title', 'company', 'location'.
+    """
+    stripped = line.strip()
+    if "|" in stripped:
+        return _parse_job_header_pipe_style(stripped)
+    return _parse_job_header_parenthesized(stripped)
 
 
 def _collect_job_content(lines: list[str], start_idx: int) -> tuple[list[str], int]:
@@ -677,6 +750,48 @@ def _parse_generic_section(lines: list[str], start_idx: int) -> tuple[list[str],
             items.append(line)
         i += 1
     return items, i
+
+
+def _merge_bulleted_section_lines(
+    lines: list[str], *, is_skills_section: bool = False
+) -> list[str]:
+    """
+    Merge multi-line bullet entries into single logical items.
+
+    Bullet entries start with common bullet markers and continuation lines are joined to the active item.
+    """
+    merged = []
+    current = None
+    bullet_prefixes = ("•", "¢", "°")
+
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+
+        prefix = next((p for p in bullet_prefixes if stripped.startswith(p)), None)
+        is_category_heading = (
+            is_skills_section and "&" in stripped and ":" not in stripped
+        )
+
+        if prefix:
+            if current is not None:
+                merged.append(current)
+            current = stripped[len(prefix) :].strip()
+        elif is_category_heading:
+            if current is not None:
+                merged.append(current)
+                current = None
+            merged.append(stripped)
+        elif current is not None:
+            current += " " + stripped
+        else:
+            merged.append(stripped)
+
+    if current is not None:
+        merged.append(current)
+
+    return merged
 
 
 def _contains_degree_keyword(text: str, degree_keywords: list[str]) -> bool:
@@ -878,74 +993,23 @@ def _handle_education_section(
     return education_entries, next_idx
 
 
-def _process_bullet_line(
-    line: str, current: str | None, languages: list[str]
-) -> str | None:
-    """Process a bullet line, returning the new current language or None."""
-    line_without_bullet = re.sub(r"^\s*•\s*", "", line).strip()
-    sanitized_text = final_sanitize(line_without_bullet)
-    if sanitized_text and LINKEDIN_KEYWORD not in sanitized_text.lower():
-        if current:
-            languages.append(current)
-        return sanitized_text
-    return current
-
-
-def _process_non_bullet_line(line: str, current: str | None) -> str | None:
-    """Process a non-bullet line, appending to current if valid."""
-    sanitized_text = final_sanitize(line)
-    if sanitized_text and LINKEDIN_KEYWORD not in sanitized_text.lower():
-        if current:
-            return current + " " + sanitized_text
-        return sanitized_text
-    return current
-
-
-def _parse_bulleted_languages(
+def _handle_languages_section(
     lines: list[str], start_idx: int
 ) -> tuple[list[str], int]:
     """
-    Parse language entries formatted with bullet points.
+    Parse the Languages section into a list of sanitized language entries.
 
-    Aggregates multi-line bullet items into single entries and filters out LinkedIn URLs.
-
-    Parameters:
-        lines (list[str]): OCR text lines for the whole document.
-        start_idx (int): Index of the section header line.
-
-    Returns:
-        tuple[list[str], int]: Sanitized language entries and next line index.
-    """
-    content, next_idx = _parse_generic_section(lines, start_idx)
-    languages = []
-    current = None
-
-    for original_line in content:
-        if original_line.startswith("•"):
-            current = _process_bullet_line(original_line, current, languages)
-        else:
-            current = _process_non_bullet_line(original_line, current)
-
-    if current:
-        languages.append(current)
-
-    return languages, next_idx
-
-
-def _parse_inline_languages(lines: list[str], start_idx: int) -> tuple[list[str], int]:
-    """
-    Parse language entries in plain-line format (no bullets).
-
-    Treats each non-empty line as a separate language entry and filters out LinkedIn URLs.
+    This routine reads the section content starting after the header, groups bullet entries across wrapped lines, filters out lines containing the LinkedIn URL keyword, and applies OCR sanitization to each entry.
 
     Parameters:
         lines (list[str]): OCR text lines for the whole document.
-        start_idx (int): Index of the section header line.
+        start_idx (int): Index of the section header line; parsing begins at the line after this index.
 
     Returns:
-        tuple[list[str], int]: Sanitized language entries and next line index.
+        tuple[list[str], int]: A tuple where the first element is the list of sanitized language entries (in original order) and the second element is the index of the next line to process after this section.
     """
     content, next_idx = _parse_generic_section(lines, start_idx)
+    content = _merge_bulleted_section_lines(content)
     languages = []
 
     for content_line in content:
@@ -956,58 +1020,13 @@ def _parse_inline_languages(lines: list[str], start_idx: int) -> tuple[list[str]
     return languages, next_idx
 
 
-def _detect_language_format(lines: list[str], start_idx: int) -> str | None:
-    """
-    Detect the format of the languages section: 'bulleted' or 'inline'.
-
-    Returns None if the section is empty.
-    """
-    i = start_idx + 1
-    while i < len(lines) and not _is_header(lines[i]):
-        line = lines[i].strip()
-        if line:
-            if line.startswith("•"):
-                return "bulleted"
-            return "inline"
-        i += 1
-    return None
-
-
-def _handle_languages_section(
-    lines: list[str], start_idx: int
-) -> tuple[list[str], int]:
-    """
-    Parse the Languages section into a list of sanitized language entries.
-
-    This routine reads the section content starting after the header, supports both bullet-formatted and plain-line formats, aggregates multi-line bullet items into single entries, filters out lines containing the LinkedIn URL keyword, and applies OCR sanitization to each entry.
-
-    Parameters:
-        lines (list[str]): OCR text lines for the whole document.
-        start_idx (int): Index of the section header line; parsing begins at the line after this index.
-
-    Returns:
-        tuple[list[str], int]: A tuple where the first element is the list of sanitized language entries (in original order) and the second element is the index of the next line to process after this section.
-    """
-    format_type = _detect_language_format(lines, start_idx)
-    if format_type == "bulleted":
-        return _parse_bulleted_languages(lines, start_idx)
-    elif format_type == "inline":
-        return _parse_inline_languages(lines, start_idx)
-    else:
-        # Empty section fallback
-        i = start_idx + 1
-        while i < len(lines) and not _is_header(lines[i]):
-            i += 1
-        return [], i
-
-
 def _handle_competencies_and_skills_section(
     lines: list[str], start_idx: int
 ) -> tuple[dict, int]:
     """
     Map competencies and skills in the section to sanitized category→skill lists.
 
-    Parses the section starting after start_idx, splits content into keyword-led blocks using SKILL_KEYWORDS, and for each block containing a colon treats the left side as a category and the right side as comma- or semicolon-separated skills. Category names and skill values are sanitized; blocks without a colon are ignored.
+    Parses the section starting after start_idx, identifying main categories and their sub-bullets.
 
     Parameters:
         lines (list[str]): All OCR lines from the document.
@@ -1017,14 +1036,40 @@ def _handle_competencies_and_skills_section(
         tuple[dict, int]: A tuple where the first element maps sanitized category names to lists of sanitized skill strings, and the second element is the index of the first line after the section.
     """
     content, next_idx = _parse_generic_section(lines, start_idx)
-    _, skill_blocks = semantic_bullet_split(" ".join(content), SKILL_KEYWORDS)
+    content = _merge_bulleted_section_lines(content, is_skills_section=True)
     skills_dict = {}
-    for block in skill_blocks:
-        if ":" in block:
-            cat, vals = block.split(":", 1)
-            skills_dict[final_sanitize(cat.strip())] = [
-                final_sanitize(v.strip()) for v in re.split(r"[;,]", vals) if v.strip()
+    current_cat = None
+
+    for line in content:
+        stripped = line.strip()
+        if not stripped:
+            continue
+
+        if ":" not in stripped and "&" in stripped:
+            current_cat = final_sanitize(stripped)
+            if current_cat not in skills_dict:
+                skills_dict[current_cat] = []
+            continue
+
+        if current_cat is None:
+            current_cat = "General"
+            skills_dict[current_cat] = []
+
+        bullet_text = stripped
+        if ":" in bullet_text:
+            cat_part, values_part = bullet_text.split(":", 1)
+            nested_cat = f"{current_cat} - {final_sanitize(cat_part)}"
+            if nested_cat not in skills_dict:
+                skills_dict[nested_cat] = []
+            skills = [
+                final_sanitize(s.strip())
+                for s in re.split(r"[;,]", values_part)
+                if s.strip()
             ]
+            skills_dict[nested_cat].extend(skills)
+        else:
+            skills_dict[current_cat].append(final_sanitize(bullet_text))
+
     return skills_dict, next_idx
 
 
@@ -1038,6 +1083,7 @@ def _handle_generic_fallback_section(
         tuple[list[str], int]: Sanitized section lines and the index of the first line after the section.
     """
     content, next_idx = _parse_generic_section(lines, start_idx)
+    content = _merge_bulleted_section_lines(content)
     return [final_sanitize(item) for item in content], next_idx
 
 
