@@ -753,7 +753,7 @@ def _parse_generic_section(lines: list[str], start_idx: int) -> tuple[list[str],
 
 
 def _merge_bulleted_section_lines(
-    lines: list[str], is_skills_section: bool = False
+    lines: list[str], *, is_skills_section: bool = False
 ) -> list[str]:
     """
     Merge multi-line bullet entries into single logical items.
