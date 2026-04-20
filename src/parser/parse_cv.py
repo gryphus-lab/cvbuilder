@@ -236,7 +236,7 @@ def _extract_header_language_entries(line: str) -> list[str] | None:
     if len(line) > 1024:
         return None
 
-    match = re.search(r"(?i)\b(?:languages|sprache|sprachen)\b\s*:?\s*(.+)$", line)
+    match = re.search(r"(?i)\b(?:languages|sprache|sprachen)\b\s*(?:[:\-\u2013\u2014]\s*)?(.+)$", line)
     if not match:
         return None
 
@@ -558,44 +558,31 @@ def _is_job_header(line: str) -> bool:
     if not pipe_style and not paren_style:
         return False
 
+    dash = r"[\u002d\u2013\u2014]"
     date_pattern = re.compile(
-        r"\d{1,2}/\d{4}\s*[-–—]\s*(?:\d{1,2}/\d{4}|Present)|\d{4}\s*[-–—]\s*\d{4}"
+        rf"\d{{1,2}}/\d{{4}}\s*{dash}\s*(?:\d{{1,2}}/\d{{4}}|Present)|\d{{4}}\s*{dash}\s*(?:\d{{4}}|Present)"
     )
     return bool(date_pattern.search(stripped))
 
 
-def _parse_job_header(line: str) -> dict[str, str]:
-    """Parse job header into title, company, location, dates."""
-    stripped = line.strip()
-    if "|" in stripped:
-        parts = [part.strip() for part in stripped.split("|")]
-        if len(parts) < 3:
-            return {"title": stripped, "company": "", "location": "", "dates": ""}
+def _parse_job_header_pipe_style(stripped: str) -> dict[str, str]:
+    """
+    Parse job header in pipe-separated format: dates | title | company | location.
 
-        dates = parts[0]
-        title = parts[1]
-        company_location = parts[2]
+    Parameters:
+        stripped (str): The trimmed job header line containing pipe separators.
 
-        if ", " in company_location:
-            company_part, location_part = company_location.rsplit(", ", 1)
-            if " (" in location_part:
-                location = location_part.split(" (")[0]
-            else:
-                location = location_part
-            company = company_part
-        else:
-            company = company_location
-            location = ""
-    else:
-        header_part = stripped
-        dates = ""
-        if "(" in stripped:
-            header_part, dates_part = stripped.rsplit("(", 1)
-            dates = dates_part[:-1].strip()
-        header_parts = [part.strip() for part in header_part.split(",")]
-        title = header_parts[0] if header_parts else header_part.strip()
-        company = header_parts[1] if len(header_parts) >= 2 else ""
-        location = final_sanitize(header_parts[2]) if len(header_parts) >= 3 else ""
+    Returns:
+        dict[str, str]: Mapping with keys 'dates', 'title', 'company', 'location'.
+    """
+    parts = [part.strip() for part in stripped.split("|")]
+    if len(parts) < 4:
+        return {"title": stripped, "company": "", "location": "", "dates": ""}
+
+    dates = parts[0] if parts[0] else ""
+    title = parts[1] if parts[1] else ""
+    company = parts[2] if parts[2] else ""
+    location = parts[3] if parts[3] else ""
 
     return {
         "title": title,
@@ -603,6 +590,53 @@ def _parse_job_header(line: str) -> dict[str, str]:
         "location": location,
         "dates": dates,
     }
+
+
+def _parse_job_header_parenthesized(stripped: str) -> dict[str, str]:
+    """
+    Parse job header in parenthesized format: title, company, location (dates).
+
+    Parameters:
+        stripped (str): The trimmed job header line with dates in trailing parentheses.
+
+    Returns:
+        dict[str, str]: Mapping with keys 'dates', 'title', 'company', 'location'.
+    """
+    header_part = stripped
+    dates = ""
+    if "(" in stripped:
+        header_part, dates_part = stripped.rsplit("(", 1)
+        dates = dates_part[:-1].strip()
+    header_parts = [part.strip() for part in header_part.split(",")]
+    title = header_parts[0] if header_parts else header_part.strip()
+    company = header_parts[1] if len(header_parts) >= 2 else ""
+    location = final_sanitize(header_parts[2]) if len(header_parts) >= 3 else ""
+
+    return {
+        "title": title,
+        "company": company,
+        "location": location,
+        "dates": dates,
+    }
+
+
+def _parse_job_header(line: str) -> dict[str, str]:
+    """
+    Parse job header into title, company, location, dates.
+
+    Dispatches to pipe-separated or parenthesized helper based on format detection.
+
+    Parameters:
+        line (str): Raw job header line from OCR output.
+
+    Returns:
+        dict[str, str]: Mapping with keys 'dates', 'title', 'company', 'location'.
+    """
+    stripped = line.strip()
+    if "|" in stripped:
+        return _parse_job_header_pipe_style(stripped)
+    else:
+        return _parse_job_header_parenthesized(stripped)
 
 
 def _collect_job_content(lines: list[str], start_idx: int) -> tuple[list[str], int]:
