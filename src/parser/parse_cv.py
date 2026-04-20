@@ -563,7 +563,7 @@ def _is_job_header(line: str) -> bool:
     dash = r"[\u002d\u2013\u2014]"
     date_pattern = re.compile(
         rf"\d{{1,2}}/\d{{4}}\s*{dash}\s*(?:\d{{1,2}}/\d{{4}}|Present)|\d{{4}}\s*{dash}\s*(?:\d{{4}}|Present)",
-        re.IGNORECASE
+        re.IGNORECASE,
     )
     return bool(date_pattern.search(stripped))
 
@@ -752,7 +752,9 @@ def _parse_generic_section(lines: list[str], start_idx: int) -> tuple[list[str],
     return items, i
 
 
-def _merge_bulleted_section_lines(lines: list[str], is_skills_section: bool = False) -> list[str]:
+def _merge_bulleted_section_lines(
+    lines: list[str], is_skills_section: bool = False
+) -> list[str]:
     """
     Merge multi-line bullet entries into single logical items.
 
@@ -768,7 +770,9 @@ def _merge_bulleted_section_lines(lines: list[str], is_skills_section: bool = Fa
             continue
 
         prefix = next((p for p in bullet_prefixes if stripped.startswith(p)), None)
-        is_category_heading = is_skills_section and "&" in stripped and ":" not in stripped
+        is_category_heading = (
+            is_skills_section and "&" in stripped and ":" not in stripped
+        )
 
         if prefix:
             if current is not None:

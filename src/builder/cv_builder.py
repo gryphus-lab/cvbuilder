@@ -231,12 +231,7 @@ class CVBuilder:
     {% for job in cv.professional_experience %}
     <div class="job">
         <div class="job-header">
-            {% set job_parts = [] %}
-            {% if job.dates %}{% set job_parts = job_parts + [job.dates] %}{% endif %}
-            {% if job.title %}{% set job_parts = job_parts + [job.title] %}{% endif %}
-            {% if job.company %}{% set job_parts = job_parts + [job.company] %}{% endif %}
-            {% if job.location %}{% set job_parts = job_parts + [job.location] %}{% endif %}
-            {{ job_parts | join(' | ') }}
+            {{ [job.dates|default(''), job.title|default(''), job.company|default(''), job.location|default('')] | join(' | ') }}
         </div>
         {% if job.description %}
         <p>{{ job.description }}</p>
