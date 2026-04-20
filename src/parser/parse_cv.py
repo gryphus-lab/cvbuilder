@@ -773,9 +773,10 @@ def _merge_bulleted_section_lines(lines: list[str]) -> list[str]:
             if current is not None:
                 merged.append(current)
             current = stripped[len(prefix) :].strip()
-        elif is_category_heading and current is not None:
-            merged.append(current)
-            current = None
+        elif is_category_heading:
+            if current is not None:
+                merged.append(current)
+                current = None
             merged.append(stripped)
         elif current is not None:
             current += " " + stripped

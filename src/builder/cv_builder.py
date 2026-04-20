@@ -137,25 +137,11 @@ class CVBuilder:
         .job {
             margin-bottom: 11px;
         }
-        .job-title {
+        .job-header {
             font-family: "Arial", sans-serif;
             font-weight: bold;
             font-size: 11pt;
-        }
-        .job-company {
-            font-family: "Arial", sans-serif;
-            font-weight: bold;
-        }
-        .job-location {
-            font-family: "Arial", sans-serif;
-            color: #555;
-            font-size: 11pt;
-            font-weight: bold;
-        }
-        .job-dates {
-            font-size: 11pt;
-            font-family: "Arial", sans-serif;
-            font-weight: bold;
+            margin-bottom: 4px;
         }
 
         ul {
