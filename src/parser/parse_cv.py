@@ -236,7 +236,9 @@ def _extract_header_language_entries(line: str) -> list[str] | None:
     if len(line) > 1024:
         return None
 
-    match = re.search(r"(?i)\b(?:languages|sprache|sprachen)\b\s*(?:[:\-\u2013\u2014]\s*)?(.+)$", line)
+    match = re.search(
+        r"(?i)\b(?:languages|sprache|sprachen)\b\s*(?:[:\-\u2013\u2014]\s*)?(.+)$", line
+    )
     if not match:
         return None
 
@@ -576,13 +578,12 @@ def _parse_job_header_pipe_style(stripped: str) -> dict[str, str]:
         dict[str, str]: Mapping with keys 'dates', 'title', 'company', 'location'.
     """
     parts = [part.strip() for part in stripped.split("|")]
-    if len(parts) < 4:
-        return {"title": stripped, "company": "", "location": "", "dates": ""}
 
-    dates = parts[0] if parts[0] else ""
-    title = parts[1] if parts[1] else ""
-    company = parts[2] if parts[2] else ""
-    location = parts[3] if parts[3] else ""
+    # Positional, best-effort mapping: dates → title → company → location
+    dates = parts[0] if len(parts) >= 1 and parts[0] else ""
+    title = parts[1] if len(parts) >= 2 and parts[1] else ""
+    company = parts[2] if len(parts) >= 3 and parts[2] else ""
+    location = parts[3] if len(parts) >= 4 and parts[3] else ""
 
     return {
         "title": title,
@@ -635,8 +636,7 @@ def _parse_job_header(line: str) -> dict[str, str]:
     stripped = line.strip()
     if "|" in stripped:
         return _parse_job_header_pipe_style(stripped)
-    else:
-        return _parse_job_header_parenthesized(stripped)
+    return _parse_job_header_parenthesized(stripped)
 
 
 def _collect_job_content(lines: list[str], start_idx: int) -> tuple[list[str], int]:
@@ -985,101 +985,6 @@ def _handle_education_section(
         _parse_education_entry(item, DEGREE_KEYWORDS) for item in content
     ]
     return education_entries, next_idx
-
-
-def _process_bullet_line(
-    line: str, current: str | None, languages: list[str]
-) -> str | None:
-    """Process a bullet line, returning the new current language or None."""
-    line_without_bullet = re.sub(r"^\s*•\s*", "", line).strip()
-    sanitized_text = final_sanitize(line_without_bullet)
-    if sanitized_text and LINKEDIN_KEYWORD not in sanitized_text.lower():
-        if current:
-            languages.append(current)
-        return sanitized_text
-    return current
-
-
-def _process_non_bullet_line(line: str, current: str | None) -> str | None:
-    """Process a non-bullet line, appending to current if valid."""
-    sanitized_text = final_sanitize(line)
-    if sanitized_text and LINKEDIN_KEYWORD not in sanitized_text.lower():
-        if current:
-            return current + " " + sanitized_text
-        return sanitized_text
-    return current
-
-
-def _parse_bulleted_languages(
-    lines: list[str], start_idx: int
-) -> tuple[list[str], int]:
-    """
-    Parse language entries formatted with bullet points.
-
-    Aggregates multi-line bullet items into single entries and filters out LinkedIn URLs.
-
-    Parameters:
-        lines (list[str]): OCR text lines for the whole document.
-        start_idx (int): Index of the section header line.
-
-    Returns:
-        tuple[list[str], int]: Sanitized language entries and next line index.
-    """
-    content, next_idx = _parse_generic_section(lines, start_idx)
-    languages = []
-    current = None
-
-    for original_line in content:
-        if original_line.startswith("•"):
-            current = _process_bullet_line(original_line, current, languages)
-        else:
-            current = _process_non_bullet_line(original_line, current)
-
-    if current:
-        languages.append(current)
-
-    return languages, next_idx
-
-
-def _parse_inline_languages(lines: list[str], start_idx: int) -> tuple[list[str], int]:
-    """
-    Parse language entries in plain-line format (no bullets).
-
-    Treats each non-empty line as a separate language entry and filters out LinkedIn URLs.
-
-    Parameters:
-        lines (list[str]): OCR text lines for the whole document.
-        start_idx (int): Index of the section header line.
-
-    Returns:
-        tuple[list[str], int]: Sanitized language entries and next line index.
-    """
-    content, next_idx = _parse_generic_section(lines, start_idx)
-    languages = []
-
-    for content_line in content:
-        sanitized_line = final_sanitize(content_line)
-        if sanitized_line and LINKEDIN_KEYWORD not in sanitized_line.lower():
-            languages.append(sanitized_line)
-
-    return languages, next_idx
-
-
-def _detect_language_format(lines: list[str], start_idx: int) -> str | None:
-    """
-    Detect the format of the languages section: 'bulleted' or 'inline'.
-
-    Returns None if the section is empty.
-    """
-    i = start_idx + 1
-    while i < len(lines) and not _is_header(lines[i]):
-        line = lines[i].strip()
-        if line:
-            if line.startswith("•") or line.startswith("¢"):
-                return "bulleted"
-            return "inline"
-        i += 1
-    return None
 
 
 def _handle_languages_section(
