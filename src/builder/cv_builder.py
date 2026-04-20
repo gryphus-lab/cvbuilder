@@ -91,7 +91,7 @@ class CVBuilder:
             font-family: "Arial", sans-serif;
             font-size: 11pt;
             line-height: 1.25;
-            color: #00000;
+            color: #000000;
         }
         .header {
             display: flex;
@@ -114,7 +114,7 @@ class CVBuilder:
             color: #000000;
         }
         .contact {
-            font-family: "Arial", monospace, sans-serif;
+            font-family: "Arial", Helvetica, sans-serif;
             font-size: 9.5pt;
             margin-top: 8px;
             color: #333;
@@ -145,14 +145,12 @@ class CVBuilder:
         .job-company {
             font-family: "Arial", sans-serif;
             font-weight: bold;
-
         }
         .job-location {
-                    font-family: "Arial", sans-serif;
+            font-family: "Arial", sans-serif;
             color: #555;
             font-size: 11pt;
             font-weight: bold;
-
         }
         .job-dates {
             font-size: 11pt;
@@ -247,10 +245,15 @@ class CVBuilder:
     {% for job in cv.professional_experience %}
     <div class="job">
         <div class="job-header">
-            <span class="job-dates">{{ job.dates }}</span>
-            {% if job.title %} | <span class="job-title">{{ job.title }}</span>{% endif %}
-            {% if job.company %} | <span class="job-company">{{ job.company }}</span>{% endif %}
-            {% if job.location %}, <span class="job-location">{{ job.location }}</span>{% endif %}
+            {% set header_parts = [] %}
+            {% if job.dates %}{% set header_parts = header_parts + [job.dates] %}{% endif %}
+            {% if job.title %}{% set header_parts = header_parts + [job.title] %}{% endif %}
+            {% if job.company %}{% set header_parts = header_parts + [job.company] %}{% endif %}
+            {{ header_parts | join(' | ') }}
+            {% if job.location %}
+                {% if header_parts %}, {% endif %}
+                <span class="job-location">{{ job.location }}</span>
+            {% endif %}
         </div>
         {% if job.description %}
         <p>{{ job.description }}</p>

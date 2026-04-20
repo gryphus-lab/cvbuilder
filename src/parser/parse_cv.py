@@ -103,21 +103,35 @@ def semantic_bullet_split(text: str, keywords: list) -> tuple[str, list[str]]:
     # Sanitize the text first to correct OCR artifacts
     text = final_sanitize(text)
 
-    lead_in = text
+    keyword_pattern = "|".join(re.escape(k) for k in keywords)
+    pattern = (
+        rf"\b({keyword_pattern})\b\s*:(.*?)(?=(?:\b(?:{keyword_pattern})\b\s*:)|$)"
+    )
+
+    matches = list(re.finditer(pattern, text, re.DOTALL))
     bullets = []
+    seen_bullets = set()
+    remove_spans = []
 
-    for kw in keywords:
-        pattern = rf"(?:\.|\s|^)({re.escape(kw)})\s*:(.*?)(?=(?:\.|\s|^)({'|'.join([re.escape(k) for k in keywords if k != kw])})\s*:|$)"
-        for match in re.finditer(pattern, text, re.DOTALL):
-            kw_matched = match.group(1)
-            content = match.group(2).strip()
-            bullet_full = f"{kw_matched}: {content}"
-            if len(bullet_full) > len(kw_matched) + 5:
-                bullets.append(bullet_full)
-            # Remove the matched part from lead_in
-            lead_in = lead_in.replace(match.group(0), "")
+    for match in matches:
+        kw_matched = match.group(1)
+        content = match.group(2).strip()
+        bullet_full = f"{kw_matched}: {content}"
+        if len(bullet_full) > len(kw_matched) + 5 and bullet_full not in seen_bullets:
+            bullets.append(bullet_full)
+            seen_bullets.add(bullet_full)
+        remove_spans.append(match.span())
 
-    lead_in = lead_in.strip()
+    if remove_spans:
+        lead_parts = []
+        last_index = 0
+        for start, end in remove_spans:
+            lead_parts.append(text[last_index:start])
+            last_index = end
+        lead_parts.append(text[last_index:])
+        lead_in = "".join(lead_parts).strip()
+    else:
+        lead_in = text.strip()
 
     return lead_in, bullets
 
@@ -573,8 +587,11 @@ def _parse_job_header(line: str) -> dict[str, str]:
             company = company_location
             location = ""
     else:
-        header_part, dates_part = stripped.rsplit("(", 1)
-        dates = dates_part[:-1].strip()
+        header_part = stripped
+        dates = ""
+        if "(" in stripped:
+            header_part, dates_part = stripped.rsplit("(", 1)
+            dates = dates_part[:-1].strip()
         header_parts = [part.strip() for part in header_part.split(",")]
         title = header_parts[0] if header_parts else header_part.strip()
         company = header_parts[1] if len(header_parts) >= 2 else ""
@@ -1096,12 +1113,15 @@ def _handle_competencies_and_skills_section(
         bullet_text = stripped
         if ":" in bullet_text:
             cat_part, values_part = bullet_text.split(":", 1)
+            nested_cat = f"{current_cat} - {final_sanitize(cat_part)}"
+            if nested_cat not in skills_dict:
+                skills_dict[nested_cat] = []
             skills = [
                 final_sanitize(s.strip())
                 for s in re.split(r"[;,]", values_part)
                 if s.strip()
             ]
-            skills_dict[current_cat].extend(skills)
+            skills_dict[nested_cat].extend(skills)
         else:
             skills_dict[current_cat].append(final_sanitize(bullet_text))
 
