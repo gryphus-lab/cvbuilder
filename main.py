@@ -109,7 +109,7 @@ def main() -> None:
             print(f"❌ Parse Error: {e}")
             sys.exit(1)
         except Exception as e:
-            print(f"❌ Error: {e}")
+            print(f"❌ Parse Error: {e}")
             sys.exit(1)
     elif args.command == "build":
         try:
@@ -123,7 +123,7 @@ def main() -> None:
             print(f"❌ Build Error: Invalid JSON format: {e}")
             sys.exit(1)
         except Exception as e:
-            print(f"❌ Error: {e}")
+            print(f"❌ Build Error: {e}")
             sys.exit(1)
 
 

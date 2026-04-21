@@ -61,18 +61,19 @@ async def api_build(
             raise HTTPException(status_code=500, detail="PDF generation failed.")
 
         # Schedule the cleanup to happen AFTER the response is sent
-        background_tasks.add_task(
-            lambda p: p.unlink() if p.exists() else None, output_pdf_path
-        )
+        background_tasks.add_task(output_pdf_path.unlink, missing_ok=True)
 
         return FileResponse(
             path=output_pdf_path, filename="my_cv.pdf", media_type="application/pdf"
         )
+    except HTTPException:
+        # Re-raise HTTPException unchanged
+        raise
     except Exception as e:
         # If we failed before returning the response, clean up now
         if output_pdf_path.exists():
             output_pdf_path.unlink()
-        raise HTTPException(status_code=500, detail=f"Builder Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Builder Error: {str(e)}") from e
 
 
 if __name__ == "__main__":

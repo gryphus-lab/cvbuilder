@@ -54,7 +54,11 @@ def test_api_build_success():
             response.headers["content-disposition"]
             == 'attachment; filename="my_cv.pdf"'
         )
+        # Verify exact arguments
         mock_build.assert_called_once()
+        call_args = mock_build.call_args[0]
+        assert call_args[0] == MOCK_CV_DATA
+        assert call_args[2] is None
 
 
 def test_api_parse_error_handling():
@@ -69,7 +73,12 @@ def test_api_parse_error_handling():
 
 def test_api_build_file_not_created():
     """Tests 500 error if builder fails to actually write the file."""
-    with patch("main.run_build_from_data", return_value=None):  # Doesn't create file
+    from fastapi import HTTPException
+
+    def raise_http_exception(*args, **kwargs):
+        raise HTTPException(status_code=500, detail="PDF generation failed.")
+
+    with patch("main.run_build_from_data", side_effect=raise_http_exception):
         response = client.post("/build", json=MOCK_CV_DATA)
         assert response.status_code == 500
-        assert "PDF generation failed" in response.json()["detail"]
+        assert response.json()["detail"] == "PDF generation failed."

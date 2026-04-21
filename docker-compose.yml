@@ -12,6 +12,6 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
     # Replace tail -f with the actual startup command
-    command: ["uvicorn", "api:app", "--host", "localhost", "--port", "8080"]
+    command: ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080"]
     stdin_open: true
     tty: true
