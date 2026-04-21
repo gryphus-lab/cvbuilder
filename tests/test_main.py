@@ -168,7 +168,7 @@ def test_run_build_from_file_returns_output_path(tmp_path):
     json_path.write_text(json.dumps({"name": "Test"}))
     output_pdf = tmp_path / "out.pdf"
 
-    with patch("main.run_build_from_data", return_value=output_pdf) as mock_build:
+    with patch("main.run_build_from_data", return_value=output_pdf):
         result = run_build_from_file(json_path, output_pdf)
         assert result == output_pdf
 
@@ -322,6 +322,6 @@ def test_run_build_from_data_returns_output_path(tmp_path):
     cv_data = {"name": "Regression"}
     output_pdf = tmp_path / "cv_out.pdf"
 
-    with patch("main.CVBuilder") as MockBuilder:
+    with patch("main.CVBuilder"):
         result = run_build_from_data(cv_data, output_pdf)
         assert result is output_pdf

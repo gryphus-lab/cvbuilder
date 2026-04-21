@@ -1,3 +1,4 @@
+from typing import Annotated
 from fastapi import FastAPI, BackgroundTasks, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse
 from pathlib import Path
@@ -13,8 +14,14 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
+@app.get("/healthz")
+async def healthz():
+    """Health check endpoint for container orchestrators."""
+    return {"status": "ok"}
+
+
 @app.post("/parse")
-async def api_parse(file: UploadFile = File(...)):
+async def api_parse(file: Annotated[UploadFile, File(...)]):
     # Create unique per-request temp path
     """
     Parse an uploaded PDF and return the extracted structured data.
@@ -45,7 +52,7 @@ async def api_parse(file: UploadFile = File(...)):
         raise
     except Exception as e:
         # Chain other exceptions
-        raise HTTPException(status_code=500, detail=f"Parse Error: {str(e)}") from e
+        raise HTTPException(status_code=500, detail=f"Parse Error: {e!s}") from e
     finally:
         if temp_pdf.exists():
             temp_pdf.unlink()
@@ -93,7 +100,7 @@ async def api_build(
         # If we failed before returning the response, clean up now
         if output_pdf_path.exists():
             output_pdf_path.unlink()
-        raise HTTPException(status_code=500, detail=f"Builder Error: {str(e)}") from e
+        raise HTTPException(status_code=500, detail=f"Builder Error: {e!s}") from e
 
 
 if __name__ == "__main__":

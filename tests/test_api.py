@@ -1,7 +1,6 @@
 from fastapi.testclient import TestClient
 from io import BytesIO
 from unittest.mock import patch
-import uuid
 from api import app
 
 client = TestClient(app)
