@@ -15,6 +15,14 @@ RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 @app.post("/parse")
 async def api_parse(file: UploadFile = File(...)):
     # Create unique per-request temp path
+    """
+    Parse an uploaded PDF file and return the extracted data.
+    
+    The upload is written to a temporary file which is removed after processing. Re-raises HTTPException unchanged; other exceptions are converted to an HTTP 500 error.
+    
+    Returns:
+        Parsed data produced from the uploaded PDF (typically a dict).
+    """
     temp_pdf = UPLOAD_DIR / f"temp_{uuid.uuid4()}_{file.filename}"
     try:
         with open(temp_pdf, "wb") as buffer:
@@ -38,8 +46,13 @@ async def api_parse(file: UploadFile = File(...)):
 @app.post("/build")
 async def api_build(cv_data: dict):
     """
-    Takes JSON data, uses CVBuilder to create a PDF,
-    and returns the actual PDF file to the browser.
+    Generate a PDF from provided CV data and return it as a downloadable response.
+    
+    Parameters:
+        cv_data (dict): Mapping of CV fields and values used to build the PDF; must conform to the builder's expected schema.
+    
+    Returns:
+        fastapi.responses.FileResponse: A response that serves the generated PDF as a downloadable file (named "my_cv.pdf").
     """
     # Create unique per-request output path
     output_pdf_path = RESULTS_DIR / f"generated_cv_{uuid.uuid4()}.pdf"
