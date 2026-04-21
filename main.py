@@ -34,15 +34,15 @@ def run_build_from_data(
     cv_data: dict, output_path: Path, photo_path: Path | None = None
 ):
     """
-    Builds a CV PDF from structured CV data and returns the path to the generated file.
-
+    Build a CV PDF from structured CV data.
+    
     Parameters:
-        cv_data (dict): Structured CV data (as produced by the parser) used to populate the PDF.
+        cv_data (dict): Structured CV data as produced by the parser.
         output_path (Path): Destination path for the generated PDF.
-        photo_path (Path, optional): Path to a photo to include in the CV; if omitted, no photo is added.
-
+        photo_path (Path | None): Optional path to a photo to include in the CV.
+    
     Returns:
-        Path: The path to the generated PDF (the provided `output_path`).
+        Path: Path to the generated PDF (the provided `output_path`).
     """
     builder = CVBuilder()
     builder.build(cv_data, output_path, photo_path)
@@ -53,16 +53,16 @@ def run_build_from_file(
     json_path: Path, output_path: Path, photo_path: Path | None = None
 ):
     """
-    Builds a CV PDF from a JSON file.
-
+    Create a CV PDF from structured CV data loaded from a JSON file.
+    
     Parameters:
         json_path (Path): Path to the input JSON file containing CV data.
-        output_path (Path): Path where the generated PDF will be written.
+        output_path (Path): Destination path for the generated PDF.
         photo_path (Path | None): Optional path to a photo to include in the CV.
-
+    
     Returns:
         Path: The `output_path` pointing to the generated PDF file.
-
+    
     Raises:
         FileNotFoundError: If `json_path` does not exist.
     """
@@ -78,9 +78,9 @@ def run_build_from_file(
 
 def main() -> None:
     """
-    Command-line entry point that parses arguments and dispatches the `parse` and `build` subcommands.
-
-    Parses CLI options, runs `run_parse` for the "parse" subcommand (converts a PDF to JSON) or `run_build_from_file` for the "build" subcommand (generates a PDF from JSON, optionally with a photo). Prints progress and success messages to stdout and exits the process with status code 1 on errors such as missing files or invalid JSON.
+    Parse command-line arguments and execute the selected subcommand ("parse" or "build").
+    
+    Supports a "parse" subcommand to convert a CV PDF to JSON and a "build" subcommand to generate a CV PDF from JSON (optionally with a photo). Prints progress and success messages to stdout and exits the process with status code 1 on errors such as missing inputs or invalid JSON.
     """
     parser = argparse.ArgumentParser(description="CV Parser & Builder")
     subparsers = parser.add_subparsers(dest="command", required=True)
