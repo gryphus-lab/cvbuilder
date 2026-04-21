@@ -1,5 +1,5 @@
 [tools]
-python = "3.14"
+python = "3.13"
 uv = "latest"
 black = "latest"
 
@@ -64,3 +64,31 @@ depends = ["bootstrap"]
 description = "Run tests with coverage report"
 run = "pytest tests --cov=. --cov-report=term-missing --cov-report=xml:coverage.xml"
 depends = ["bootstrap"]
+
+[tasks.docker-build]
+description = "Build the Docker image"
+run = "docker build -t gryphus-lab/cvbuilder ."
+
+[tasks.docker-parse-pdf]
+description = "Parse PDF inside Docker"
+run = 'docker run --rm -v "$PWD:/app" gryphus-lab/cvbuilder python main.py parse'
+depends = ["docker-build"]
+
+[tasks.docker-build-pdf]
+description = "Build PDF inside Docker"
+run = 'docker run --rm -v "$PWD:/app" gryphus-lab/cvbuilder python main.py build'
+depends = ["docker-build"]
+
+[tasks.docker-full-pdf]
+description = "Full parse + build inside Docker"
+run = 'docker run --rm -v "$PWD:/app" gryphus-lab/cvbuilder sh -c "python main.py parse && python main.py build"'
+depends = ["docker-build"]
+
+[tasks.docker-compose-up]
+description = "Run docker-compose using the Dockerfile"
+run = "docker compose up --build -d"
+
+[tasks.docker-compose-down]
+description = "Run docker-compose using the Dockerfile"
+run = "docker compose down"
+

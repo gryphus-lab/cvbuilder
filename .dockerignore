@@ -1,0 +1,15 @@
+__pycache__
+.venv
+.idea
+.vscode
+results/
+*.pdf
+*.pyc
+.git
+.env
+.env.*
+*.pem
+*.key
+*.p12
+config.local.json
+config.*.local.json

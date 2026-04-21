@@ -1,0 +1,17 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: python_app
+    volumes:
+      # Syncs your local results folder with the container's output
+      - ./results:/app/results
+      # Maps your local config to the container
+      - ./config.json:/app/config.json:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+    # Keeps the container open for interactive debugging if needed
+    command: ["tail", "-f", "/dev/null"]
+    stdin_open: true
+    tty: true
