@@ -1,18 +1,15 @@
 [tools]
 python = "3.13"
 uv = "latest"
-black = "latest"
+ruff = "latest"
 
 [env]
 CPATH = "/opt/homebrew/include"
 LDFLAGS = "-L/opt/homebrew/lib"
 LIBRARY_PATH = "/opt/homebrew/lib"
 WEASYPRINT_DLL_DIRECTORIES = "/opt/homebrew/lib"
-
 PROJECT_NAME = "{{ config_root | basename }}"
-_.python.venv = { path = ".venv", create = true, uv_create_args = [
-  "--system-site-packages",
-] }
+_.python.venv = { path = ".venv", create = true, uv_create_args = [ "--system-site-packages", ] }
 UV_PROJECT_ENVIRONMENT = ".venv"
 
 [settings]
@@ -21,8 +18,8 @@ python.uv_venv_auto = "create|source"
 [tasks.bootstrap]
 description = "Install dependencies"
 run = [
-  'if [[ "$OSTYPE" == "darwin"* ]]; then ln -sf $(brew --prefix)/lib/* $(python -c "import sysconfig; print(sysconfig.get_path(\"stdlib\"))") >/dev/null 2>&1; fi',
-  "uv pip install -r requirements.txt",
+    'if [[ "$OSTYPE" == "darwin"* ]]; then ln -sf $(brew --prefix)/lib/* $(python -c "import sysconfig; print(sysconfig.get_path(\"stdlib\"))") >/dev/null 2>&1; fi',
+    "uv pip install -r requirements.txt",
 ]
 
 [tasks.info]
@@ -46,13 +43,13 @@ description = "Parse + Build (full regeneration)"
 run = ["python main.py parse", "python main.py build"]
 
 [tasks.lint]
-description = "Lint with black"
-run = "black --check --fast . "
+description = "Lint and check formatting with Ruff"
+run = "ruff check . && ruff format --check ."
 depends = ["bootstrap"]
 
 [tasks.format]
-description = "Format code with black"
-run = "black . --fast"
+description = "Format and fix code with Ruff"
+run = "ruff format . && ruff check --fix ."
 depends = ["bootstrap"]
 
 [tasks.test]
@@ -91,4 +88,3 @@ run = "docker compose up --build -d"
 [tasks.docker-compose-down]
 description = "Run docker-compose using the Dockerfile"
 run = "docker compose down"
-

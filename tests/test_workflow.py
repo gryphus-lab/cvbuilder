@@ -6,7 +6,6 @@ falling back to raw-text assertions so the suite never requires an
 extra install just to run.
 """
 
-import re
 import unittest
 from pathlib import Path
 
@@ -266,16 +265,20 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
             ("Checkout", lambda s: "actions/checkout" in s.get("uses", "")),
             (
                 "Setup mise",
-                lambda s: s.get("name") == "Setup mise"
-                or "jdx/mise-action" in s.get("uses", ""),
+                lambda s: (
+                    s.get("name") == "Setup mise"
+                    or "jdx/mise-action" in s.get("uses", "")
+                ),
             ),
             ("Check setup", lambda s: s.get("name") == "Check setup"),
             ("Install dependencies", lambda s: s.get("name") == "Install dependencies"),
             ("Show project info", lambda s: s.get("name") == "Show project info"),
             (
                 "Run tests",
-                lambda s: "pytest" in s.get("name", "").lower()
-                or "test" in s.get("name", "").lower(),
+                lambda s: (
+                    "pytest" in s.get("name", "").lower()
+                    or "test" in s.get("name", "").lower()
+                ),
             ),
         ]
 

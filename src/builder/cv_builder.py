@@ -2,8 +2,6 @@ import os
 import logging
 from pathlib import Path
 from typing import Dict, Any
-import jinja2
-import weasyprint
 from jinja2 import Environment, BaseLoader, select_autoescape
 from weasyprint import HTML
 

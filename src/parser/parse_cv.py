@@ -1114,7 +1114,7 @@ def parse_cv_to_json(pdf_path: str):
     output_file.parent.mkdir(exist_ok=True, parents=True)
     output_file.write_text(raw_text, encoding="utf-8")
 
-    lines = [l.strip() for l in raw_text.split("\n") if l.strip()]
+    lines = [line.strip() for line in raw_text.split("\n") if line.strip()]
     cv_data = {
         "personal_info": {},
         "profile": "",
