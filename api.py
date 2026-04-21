@@ -9,6 +9,7 @@ UPLOAD_DIR = Path("results")
 RESULTS_DIR = Path("results")
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
+
 @app.post("/parse")
 async def api_parse(file: UploadFile = File(...)):
     temp_pdf = UPLOAD_DIR / f"temp_{file.filename}"
@@ -20,7 +21,9 @@ async def api_parse(file: UploadFile = File(...)):
         data = main.run_parse(temp_pdf)
         return data
     finally:
-        if temp_pdf.exists(): temp_pdf.unlink()
+        if temp_pdf.exists():
+            temp_pdf.unlink()
+
 
 @app.post("/build")
 async def api_build(cv_data: dict):
@@ -41,14 +44,14 @@ async def api_build(cv_data: dict):
 
         # Return the file so the browser downloads it
         return FileResponse(
-            path=output_pdf_path,
-            filename="my_cv.pdf",
-            media_type="application/pdf"
+            path=output_pdf_path, filename="my_cv.pdf", media_type="application/pdf"
         )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Builder Error: {str(e)}")
 
+
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8080)
