@@ -13,7 +13,7 @@ class TestMainCLI(unittest.TestCase):
                 with patch("builtins.print") as mock_print:
                     with self.assertRaises(SystemExit):
                         cli_main.main()
-                    mock_print.assert_any_call(f"❌ Error: PDF not found: {missing_pdf.resolve()}")
+                    mock_print.assert_any_call(f"❌ Parse Error: PDF not found: {missing_pdf.resolve()}")
 
     def test_build_success_calls_logic(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
