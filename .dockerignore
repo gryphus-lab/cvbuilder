@@ -1,0 +1,8 @@
+__pycache__
+.venv
+.idea
+.vscode
+results/
+*.pdf
+*.pyc
+.git
