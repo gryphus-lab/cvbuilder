@@ -102,7 +102,7 @@ def test_main_build_command(tmp_path, capsys):
         assert "✅ PDF saved" in captured.out
 
 
-def test_main_parse_error_exit(tmp_path):
+def test_main_parse_error_exit():
     # Test that sys.exit(1) is called on FileNotFoundError
     test_args = ["main.py", "parse", "non_existent.pdf"]
 
