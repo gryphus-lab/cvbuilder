@@ -14,7 +14,7 @@ dependencies = [
     "pytesseract>=0.3.13,<1.0",
     "weasyprint>=68.1",
 ]
-optional-dependencies = { test = ["pytest>=9.0.3", "pytest-cov>=6.2.1"] }
+optional-dependencies = { test = ["pytest>=9.0.3", "pytest-cov>=7.1.0"] }
 
 [tool.setuptools]
 package-dir = {"." = "src"}
