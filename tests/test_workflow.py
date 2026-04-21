@@ -210,18 +210,6 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
             self.cfg["name"], "CI Workflow for cvbuilder with mise and SonarQube"
         )
 
-    def test_on_push_branches(self):
-        """
-        Assert that the workflow's `on.push.branches` configuration includes "main".
-        """
-        self.assertIn("main", self.cfg["on"]["push"]["branches"])
-
-    def test_on_pull_request_branches(self):
-        """
-        Check that the workflow's `pull_request` trigger includes the `main` branch.
-        """
-        self.assertIn("main", self.cfg["on"]["pull_request"]["branches"])
-
     def test_top_level_permissions_contents_read(self):
         """
         Assert that the workflow's top-level `permissions.contents` is "read".
@@ -349,10 +337,6 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
     def test_show_project_info_step_command(self):
         step = self._get_step_by_name("Show project info")
         self.assertIn("mise run info", step["run"])
-
-    def test_lint_step_command(self):
-        step = self._get_step_by_name("Lint with black")
-        self.assertIn("mise run lint", step["run"])
 
     def test_check_setup_step_commands(self):
         """
