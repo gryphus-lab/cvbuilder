@@ -105,9 +105,6 @@ def main() -> None:
             print(f"🔄 Parsing {args.pdf_path}...")
             run_parse(args.pdf_path.resolve(), args.output)
             print(f"✅ JSON saved → {args.output}")
-        except FileNotFoundError as e:
-            print(f"❌ Parse Error: {e}")
-            sys.exit(1)
         except Exception as e:
             print(f"❌ Parse Error: {e}")
             sys.exit(1)
@@ -116,9 +113,6 @@ def main() -> None:
             print(f"🔄 Building PDF from {args.json}...")
             run_build_from_file(args.json.resolve(), args.output, args.photo)
             print(f"✅ PDF saved → {args.output}")
-        except FileNotFoundError as e:
-            print(f"❌ Build Error: {e}")
-            sys.exit(1)
         except json.JSONDecodeError as e:
             print(f"❌ Build Error: Invalid JSON format: {e}")
             sys.exit(1)

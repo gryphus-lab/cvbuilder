@@ -35,6 +35,12 @@ def test_api_parse_success():
         assert response.json() == mock_data
         mock_parse.assert_called_once()
 
+        # Assert the arguments passed to main.run_parse
+        call_args = mock_parse.call_args[0]
+        temp_pdf_path = str(call_args[0])
+        assert temp_pdf_path.startswith("uploads/")
+        assert temp_pdf_path.endswith(".pdf")
+
 
 def test_api_build_success():
     """Tests that JSON data results in a PDF FileResponse."""
