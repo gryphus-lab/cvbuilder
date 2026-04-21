@@ -22,6 +22,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY ./src src
 COPY ./main.py main.py
+COPY ./api.py api.py
 COPY ./pyproject.toml pyproject.toml
 COPY ./config.json /app/config.json
 
@@ -29,4 +30,5 @@ RUN mkdir -p /app/results && chown -R appuser:appuser /app
 
 USER appuser
 
-CMD ["python", "main.py", "--help"]
+EXPOSE 8080
+CMD ["uvicorn", "api.py:app", "--host", "0.0.0.0", "--port", "8000"]

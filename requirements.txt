@@ -4,3 +4,6 @@ pytesseract>=0.3.10,<1.0
 weasyprint>=68.0
 pytest>=9.0.3
 pytest-cov>=6.2.1
+fastapi
+uvicorn
+python-multipart
