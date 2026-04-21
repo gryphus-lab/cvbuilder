@@ -31,4 +31,4 @@ RUN mkdir -p /app/results && chown -R appuser:appuser /app
 USER appuser
 
 EXPOSE 8080
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "api:app", "--host", "localhost", "--port", "8080"]
