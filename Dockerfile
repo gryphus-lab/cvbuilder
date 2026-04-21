@@ -14,15 +14,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
 
+RUN adduser --disabled-password --gecos "" appuser
 WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY ./src src
+COPY ./main.py main.py
+COPY ./pyproject.toml pyproject.toml
+COPY ./config.json /app/config.json
 
-RUN mkdir -p /app/results
-
-COPY config.json /app/config.json
+RUN mkdir -p /app/results && chown -R appuser:appuser /app
 
 CMD ["python", "main.py", "--help"]
