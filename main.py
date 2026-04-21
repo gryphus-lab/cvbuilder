@@ -104,7 +104,7 @@ def main() -> None:
             run_build_from_file(args.json.resolve(), args.output, args.photo)
             print(f"✅ PDF saved → {args.output}")
         except FileNotFoundError as e:
-            print(f"❌ Build Error: JSON file not found: {e}")
+            print(f"❌ Build Error: {e}")
             sys.exit(1)
         except json.JSONDecodeError as e:
             print(f"❌ Build Error: Invalid JSON format: {e}")
