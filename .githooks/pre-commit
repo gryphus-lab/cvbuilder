@@ -1,21 +1,18 @@
 #!/usr/bin/env sh
 set -e
 
-staged_files="$(git diff --cached --name-only --diff-filter=ACMR)"
+# Get staged Python files
+staged_python_files=$(git diff --cached --name-only --diff-filter=ACMR | grep '\.py$' || true)
 
-if [ -z "$staged_files" ]; then
-  exit 0
+if [ -z "$staged_python_files" ]; then
+    exit 0
 fi
 
-echo "pre-commit: formatting staged Python files only"
-echo "$staged_files" | while IFS= read -r file; do
-  case "$file" in
-    *.py) black --fast -- "$file" ;;
-  esac
-done
+echo "pre-commit: formatting and fixing staged Python files with Ruff"
 
-echo "$staged_files" | while IFS= read -r file; do
-  if [ -n "$file" ] && [ -e "$file" ]; then
-    git add -- "$file"
-  fi
-done
+# Run ruff format and ruff check (fixing issues and ignoring E741)
+echo "$staged_python_files" | xargs ruff format
+echo "$staged_python_files" | xargs ruff check --fix --ignore E741
+
+# Re-stage the modified files
+echo "$staged_python_files" | xargs git add
