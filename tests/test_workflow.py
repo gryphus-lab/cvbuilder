@@ -365,6 +365,44 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
         job = self.cfg["jobs"]["build"]
         self.assertNotIn("strategy", job)
 
+    def test_on_push_branches(self):
+        """Assert that the workflow's on.push.branches configuration includes 'main'."""
+        self.assertIn("main", self.cfg["on"]["push"]["branches"])
+
+    def test_on_pull_request_branches(self):
+        """Check that the workflow's pull_request trigger includes the main branch."""
+        self.assertIn("main", self.cfg["on"]["pull_request"]["branches"])
+
+    def test_run_pytest_step_command(self):
+        """Assert that the test step invokes pytest via mise run coverage."""
+        step = self._get_step_by_name("Run pytest tests with coverage")
+        self.assertIn("mise run coverage", step["run"])
+
+    def test_sonarqube_step_uses_action(self):
+        """Assert a SonarQube scan step is present and uses the expected action."""
+        steps = self.cfg["jobs"]["build"]["steps"]
+        sonar_steps = [s for s in steps if "sonarqube-scan-action" in s.get("uses", "")]
+        self.assertTrue(len(sonar_steps) >= 1, "No SonarQube scan step found")
+
+    def test_sonarqube_step_has_sonar_token_env(self):
+        """Assert the SonarQube scan step provides SONAR_TOKEN from secrets."""
+        steps = self.cfg["jobs"]["build"]["steps"]
+        sonar_steps = [s for s in steps if "sonarqube-scan-action" in s.get("uses", "")]
+        self.assertTrue(len(sonar_steps) >= 1, "No SonarQube scan step found")
+        sonar_env = sonar_steps[0].get("env", {})
+        self.assertIn("SONAR_TOKEN", sonar_env)
+        self.assertIn("secrets.SONAR_TOKEN", sonar_env["SONAR_TOKEN"])
+
+    def test_on_trigger_keys(self):
+        """Assert the workflow has both push and pull_request trigger keys."""
+        triggers = self.cfg["on"]
+        self.assertIn("push", triggers)
+        self.assertIn("pull_request", triggers)
+
+    def test_job_build_runs_on_is_string(self):
+        """Assert runs-on is a plain string (not a list or mapping)."""
+        self.assertIsInstance(self.cfg["jobs"]["build"]["runs-on"], str)
+
 
 if __name__ == "__main__":
     unittest.main()

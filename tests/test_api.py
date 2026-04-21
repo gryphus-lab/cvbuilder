@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 from io import BytesIO
 from unittest.mock import patch
+import uuid
 from api import app
 
 client = TestClient(app)
@@ -106,3 +107,123 @@ def test_api_build_file_not_created():
         response = client.post("/build", json=MOCK_CV_DATA)
         assert response.status_code == 500
         assert response.json()["detail"] == "PDF generation failed."
+
+
+def test_api_parse_http_exception_reraise():
+    """Tests that an HTTPException raised by run_parse is re-raised unchanged (not wrapped in 500)."""
+    from fastapi import HTTPException
+
+    def raise_http_404(*args, **kwargs):
+        raise HTTPException(status_code=404, detail="Resource not found")
+
+    with patch("main.run_parse", side_effect=raise_http_404):
+        files = {"file": ("test.pdf", b"%PDF content", "application/pdf")}
+        response = client.post("/parse", files=files)
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Resource not found"
+
+
+def test_api_parse_temp_file_cleaned_up_on_success():
+    """Tests that the temporary PDF file is deleted after a successful /parse call."""
+    mock_data = {"name": "Test"}
+    captured_temp_path = []
+
+    def capturing_run_parse(pdf_path):
+        captured_temp_path.append(pdf_path)
+        return mock_data
+
+    with patch("main.run_parse", side_effect=capturing_run_parse):
+        files = {"file": ("test.pdf", b"%PDF content", "application/pdf")}
+        response = client.post("/parse", files=files)
+
+    assert response.status_code == 200
+    # Verify temp file was cleaned up (does not exist after request)
+    assert len(captured_temp_path) == 1
+    assert not captured_temp_path[0].exists(), "Temp file was not cleaned up after success"
+
+
+def test_api_parse_temp_file_cleaned_up_on_error():
+    """Tests that the temporary PDF file is deleted even when run_parse raises an exception."""
+    captured_temp_path = []
+
+    def capturing_error_run_parse(pdf_path):
+        captured_temp_path.append(pdf_path)
+        raise RuntimeError("Parser crashed")
+
+    with patch("main.run_parse", side_effect=capturing_error_run_parse):
+        files = {"file": ("test.pdf", b"%PDF content", "application/pdf")}
+        response = client.post("/parse", files=files)
+
+    assert response.status_code == 500
+    assert len(captured_temp_path) == 1
+    assert not captured_temp_path[0].exists(), "Temp file was not cleaned up after error"
+
+
+def test_api_parse_missing_file_field():
+    """Tests that /parse returns 422 when no file is provided."""
+    response = client.post("/parse")
+    assert response.status_code == 422
+
+
+def test_api_build_generic_exception_returns_500():
+    """Tests that a generic exception from run_build_from_data results in a 500 Builder Error."""
+    with patch("main.run_build_from_data", side_effect=RuntimeError("Builder crashed")):
+        response = client.post("/build", json=MOCK_CV_DATA)
+
+        assert response.status_code == 500
+        assert "Builder Error: Builder crashed" in response.json()["detail"]
+
+
+def test_api_build_no_file_created_returns_500():
+    """Tests that /build returns 500 'PDF generation failed' when run_build_from_data succeeds but file is absent."""
+    # run_build_from_data does nothing (no file created), so output_pdf_path.exists() is False
+    with patch("main.run_build_from_data", return_value=None):
+        response = client.post("/build", json=MOCK_CV_DATA)
+
+        assert response.status_code == 500
+        assert response.json()["detail"] == "PDF generation failed."
+
+
+def test_api_build_output_path_in_results_dir():
+    """Tests that the generated PDF is placed in the results directory."""
+    captured_paths = []
+
+    def side_effect_capture(data, output_path, photo):
+        captured_paths.append(output_path)
+        output_path.touch()
+
+    with patch("main.run_build_from_data", side_effect=side_effect_capture):
+        response = client.post("/build", json=MOCK_CV_DATA)
+
+    assert response.status_code == 200
+    assert len(captured_paths) == 1
+    assert str(captured_paths[0]).startswith("results/")
+    assert str(captured_paths[0]).endswith(".pdf")
+
+
+def test_api_build_empty_dict_input():
+    """Tests that /build accepts an empty dict without crashing at the API layer."""
+
+    def side_effect_create_file(data, output_path, photo):
+        output_path.touch()
+
+    with patch("main.run_build_from_data", side_effect=side_effect_create_file):
+        response = client.post("/build", json={})
+
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "application/pdf"
+
+
+def test_api_build_http_exception_reraise():
+    """Tests that an HTTPException from run_build_from_data is re-raised unchanged (not wrapped in Builder Error)."""
+    from fastapi import HTTPException
+
+    def raise_http_403(*args, **kwargs):
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    with patch("main.run_build_from_data", side_effect=raise_http_403):
+        response = client.post("/build", json=MOCK_CV_DATA)
+
+        assert response.status_code == 403
+        assert response.json()["detail"] == "Forbidden"
