@@ -10,8 +10,8 @@ fi
 
 echo "pre-commit: formatting and fixing staged Python files with Ruff"
 
-# Run ruff format and ruff check (fixing issues and ignoring E741)
-echo "$staged_python_files" | xargs ruff check --fix --ignore E741
+# Run ruff format and ruff check (fixing issues
+echo "$staged_python_files" | xargs ruff check --fix
 echo "$staged_python_files" | xargs ruff format
 
 # Re-stage the modified files
