@@ -44,18 +44,31 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    try:
-        if args.command == "parse":
+    if args.command == "parse":
+        try:
             print(f"🔄 Parsing {args.pdf_path}...")
             run_parse(args.pdf_path.resolve(), args.output)
             print(f"✅ JSON saved → {args.output}")
-        elif args.command == "build":
+        except FileNotFoundError as e:
+            print(f"❌ Parse Error: {e}")
+            sys.exit(1)
+        except Exception as e:
+            print(f"❌ Error: {e}")
+            sys.exit(1)
+    elif args.command == "build":
+        try:
             print(f"🔄 Building PDF from {args.json}...")
             run_build_from_file(args.json.resolve(), args.output, args.photo)
             print(f"✅ PDF saved → {args.output}")
-    except Exception as e:
-        print(f"❌ Error: {e}")
-        sys.exit(1)
+        except FileNotFoundError as e:
+            print(f"❌ Build Error: JSON file not found: {e}")
+            sys.exit(1)
+        except json.JSONDecodeError as e:
+            print(f"❌ Build Error: Invalid JSON format: {e}")
+            sys.exit(1)
+        except Exception as e:
+            print(f"❌ Error: {e}")
+            sys.exit(1)
 
 if __name__ == "__main__":
     main()
