@@ -335,6 +335,11 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
         self.assertIn("mise run bootstrap", step["run"])
 
     def test_show_project_info_step_command(self):
+        """
+        Verifies the "Show project info" build step runs the project's info command.
+        
+        Asserts that the step named "Show project info" has a `run` command containing "mise run info".
+        """
         step = self._get_step_by_name("Show project info")
         self.assertIn("mise run info", step["run"])
 

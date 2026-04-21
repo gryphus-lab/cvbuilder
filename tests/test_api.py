@@ -47,6 +47,14 @@ def test_api_build_success():
 
     # Mock run_build_from_data to simulate creating a file on disk
     def side_effect_create_file(data, output_path, photo):
+        """
+        Create an empty file at output_path to simulate a generated output file during tests.
+        
+        Parameters:
+            data: The input data for building the file (unused).
+            output_path: Path-like object where an empty file will be created.
+            photo: Optional photo data passed through to the builder (unused).
+        """
         output_path.touch()  # Create the empty file so exists() returns True
 
     with patch(
@@ -82,6 +90,16 @@ def test_api_build_file_not_created():
     from fastapi import HTTPException
 
     def raise_http_exception(*args, **kwargs):
+        """
+        Raise an HTTPException with status code 500 and detail "PDF generation failed."
+        
+        Parameters:
+            *args: Ignored.
+            **kwargs: Ignored.
+        
+        Raises:
+            fastapi.HTTPException: Always raised with status_code=500 and detail "PDF generation failed."
+        """
         raise HTTPException(status_code=500, detail="PDF generation failed.")
 
     with patch("main.run_build_from_data", side_effect=raise_http_exception):
