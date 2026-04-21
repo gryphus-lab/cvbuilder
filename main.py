@@ -68,7 +68,7 @@ def run_build_from_file(
     """
     if not json_path.exists():
         raise FileNotFoundError(f"JSON not found: {json_path}")
-    with open(json_path, "r", encoding="utf-8") as f:
+    with open(json_path, encoding="utf-8") as f:
         data = json.load(f)
     return run_build_from_data(data, output_path, photo_path)
 
