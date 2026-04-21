@@ -24,13 +24,15 @@ async def api_parse(file: UploadFile = File(...)):
     Returns:
         Parsed data produced from the uploaded PDF (typically a dict).
     """
-    temp_pdf = UPLOAD_DIR / f"temp_{uuid.uuid4()}_{file.filename}"
+    temp_pdf = UPLOAD_DIR / f"temp_{uuid.uuid4()}.pdf"
     try:
-        with open(temp_pdf, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-
-        # Offload blocking call to threadpool
         loop = asyncio.get_running_loop()
+
+        def _save():
+            with open(temp_pdf, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+
+        await loop.run_in_executor(None, _save)
         data = await loop.run_in_executor(None, main.run_parse, temp_pdf)
         return data
     except HTTPException:
