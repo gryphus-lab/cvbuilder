@@ -30,7 +30,9 @@ def run_parse(pdf_path: Path, output_path: Path = Path("results/cv_data.json")):
     return cv_data
 
 
-def run_build_from_data(cv_data: dict, output_path: Path, photo_path: Path = None):
+def run_build_from_data(
+    cv_data: dict, output_path: Path, photo_path: Path | None = None
+):
     """
     Builds a CV PDF from structured CV data and returns the path to the generated file.
 
@@ -47,7 +49,9 @@ def run_build_from_data(cv_data: dict, output_path: Path, photo_path: Path = Non
     return output_path
 
 
-def run_build_from_file(json_path: Path, output_path: Path, photo_path: Path = None):
+def run_build_from_file(
+    json_path: Path, output_path: Path, photo_path: Path | None = None
+):
     """
     Builds a CV PDF from a JSON file.
 

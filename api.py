@@ -7,8 +7,9 @@ import uuid
 import main  # Import our updated main.py
 
 app = FastAPI()
-UPLOAD_DIR = Path("results")
+UPLOAD_DIR = Path("uploads")
 RESULTS_DIR = Path("results")
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -41,8 +42,6 @@ async def api_parse(file: UploadFile = File(...)):
     finally:
         if temp_pdf.exists():
             temp_pdf.unlink()
-
-
 
 
 @app.post("/build")
