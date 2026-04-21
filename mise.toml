@@ -72,14 +72,18 @@ run = "docker build -t gryphus-lab/cvbuilder ."
 [tasks.docker-parse-pdf]
 description = "Parse PDF inside Docker"
 run = "docker run --rm -v $(pwd):/app gryphus-lab/cvbuilder python main.py parse"
+depends = ["docker-build"]
+
 
 [tasks.docker-build-pdf]
 description = "Build PDF inside Docker"
 run = "docker run --rm -v $(pwd):/app gryphus-lab/cvbuilder python main.py build"
+depends = ["docker-build"]
 
 [tasks.docker-full-pdf]
 description = "Full parse + build inside Docker"
 run = "docker run --rm -v $(pwd):/app gryphus-lab/cvbuilder python main.py parse && python main.py build"
+depends = ["docker-build"]
 
 [tasks.docker-compose-up]
 description = "Run docker-compose using the Dockerfile"
