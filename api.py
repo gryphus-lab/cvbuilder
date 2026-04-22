@@ -18,7 +18,7 @@ RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 async def healthz():
     """
     Health check endpoint for container orchestrators.
-    
+
     Returns:
         dict: A JSON-like mapping with key `"status"` set to `"ok"` indicating the service is healthy.
     """
@@ -38,9 +38,9 @@ async def api_parse(file: Annotated[UploadFile, File(...)]):
     # Create unique per-request temp path
     """
     Parse an uploaded PDF into structured data.
-    
+
     Writes the upload to a temporary file and invokes the parser on that file. If an `HTTPException` is raised by the parser it is re-raised unchanged; other exceptions are converted to an `HTTPException` with status code 500 and a "Parse Error" detail. The temporary file is removed before the function returns.
-    
+
     Returns:
         Parsed data (typically a dict) extracted from the uploaded PDF.
     """
@@ -51,7 +51,7 @@ async def api_parse(file: Annotated[UploadFile, File(...)]):
         def _save():
             """
             Write the uploaded file's contents to the temporary PDF path, creating or overwriting the file on disk.
-            
+
             This helper opens the target path in binary write mode and saves the uploaded file stream to it.
             """
             with open(temp_pdf, "wb") as buffer:
@@ -85,16 +85,16 @@ async def api_build(
 ):  # Add background_tasks
     """
     Generate a PDF CV from structured input data.
-    
+
     Creates a uniquely named PDF in the module's results directory using `cv_data`, schedules the generated file for deletion after the response is sent, and returns a downloadable PDF response named "my_cv.pdf".
-    
+
     Parameters:
         cv_data (dict): Structured CV content used to populate the generated PDF.
         background_tasks (BackgroundTasks): FastAPI BackgroundTasks used to schedule post-response cleanup of the generated file.
-    
+
     Returns:
         FileResponse: A response streaming the generated PDF file with filename "my_cv.pdf" and media type "application/pdf".
-    
+
     Raises:
         HTTPException: Re-raises any incoming `HTTPException` unchanged. If PDF generation fails or an internal error occurs, deletes any partially created file and raises `HTTPException(status_code=500, detail="Builder Error: <error>")`.
     """

@@ -81,7 +81,7 @@ def run_build_from_file(
 def main() -> None:
     """
     Parse CLI arguments and run either the "parse" or "build" subcommand.
-    
+
     The "parse" subcommand converts a CV PDF to structured JSON and saves it to disk.
     The "build" subcommand generates a CV PDF from structured JSON and an optional photo.
     Progress and success messages are printed to stdout; on errors (for example missing inputs or invalid JSON) the process exits with status code 1.
@@ -93,9 +93,7 @@ def main() -> None:
     parse_p.add_argument(
         "pdf_path", nargs="?", type=Path, default=Path("resources/cv_original.pdf")
     )
-    parse_p.add_argument(
-        "-o", "--output", type=Path, default=DEFAULT_CV_JSON
-    )
+    parse_p.add_argument("-o", "--output", type=Path, default=DEFAULT_CV_JSON)
 
     build_p = subparsers.add_parser("build")
     build_p.add_argument("--json", type=Path, default=DEFAULT_CV_JSON)

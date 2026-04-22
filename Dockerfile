@@ -1,6 +1,7 @@
 FROM python:3.13-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
     gcc \
     libcairo2 \
     libffi-dev \
@@ -12,7 +13,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr \
     tesseract-ocr-deu \
     tesseract-ocr-eng \
-    curl \
     && rm -rf /var/lib/apt/lists/* \
     && adduser --disabled-password --gecos "" appuser
 

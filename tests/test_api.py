@@ -49,7 +49,7 @@ def test_api_build_success():
     def side_effect_create_file(data, output_path, photo):
         """
         Create an empty file at output_path to simulate a generated output file during tests.
-        
+
         Parameters:
             data: Input data for the builder (unused).
             output_path: Path-like object where an empty file will be created.
@@ -92,7 +92,7 @@ def test_api_build_file_not_created():
     def raise_http_exception(*args, **kwargs):
         """
         Raise an HTTP 500 error with detail "PDF generation failed."
-        
+
         Raises:
             fastapi.HTTPException: HTTP status code 500 with detail "PDF generation failed."
         """
@@ -111,7 +111,7 @@ def test_api_parse_http_exception_reraise():
     def raise_http_404(*args, **kwargs):
         """
         Raise an HTTP 404 Not Found exception with detail "Resource not found".
-        
+
         Raises:
             HTTPException: An exception with status_code=404 and detail="Resource not found".
         """
@@ -133,10 +133,10 @@ def test_api_parse_temp_file_cleaned_up_on_success():
     def capturing_run_parse(pdf_path):
         """
         Capture the provided PDF path by appending it to `captured_temp_path` and return `mock_data`.
-        
+
         Parameters:
             pdf_path: The path object passed by the code under test; it will be appended to the global `captured_temp_path` list.
-        
+
         Returns:
             The preconfigured `mock_data` object.
         """
@@ -162,10 +162,10 @@ def test_api_parse_temp_file_cleaned_up_on_error():
     def capturing_error_run_parse(pdf_path):
         """
         Capture the provided PDF path by appending it to the global `captured_temp_path` list, then raise a RuntimeError to simulate a parser crash.
-        
+
         Parameters:
             pdf_path (pathlib.Path | str): Path to the temporary PDF file passed to the parser; this value is appended to the global `captured_temp_path` list.
-        
+
         Raises:
             RuntimeError: Always raised with message "Parser crashed".
         """
@@ -211,7 +211,7 @@ def test_api_build_no_file_created_returns_500():
 def test_api_build_output_path_in_results_dir():
     """
     Verify that POST /build creates a PDF file inside the results/ directory with a .pdf extension.
-    
+
     Mocks `main.run_build_from_data` to capture and create the produced `output_path`, sends `MOCK_CV_DATA` to `/build`, and asserts a 200 response, exactly one captured path, the path string starts with "results/" and ends with ".pdf".
     """
     captured_paths = []
@@ -219,7 +219,7 @@ def test_api_build_output_path_in_results_dir():
     def side_effect_capture(data, output_path, photo):
         """
         Capture the provided output_path for later inspection and create an empty file at that path.
-        
+
         Parameters:
             data: Input data passed to the builder (not used by this side effect).
             output_path (pathlib.Path): Path where the test output file should be created; appended to a captured list.
@@ -243,7 +243,7 @@ def test_api_build_empty_dict_input():
     def side_effect_create_file(data, output_path, photo):
         """
         Create an empty file at the given output path.
-        
+
         Parameters:
             data (dict): Input CV data (ignored by this side effect).
             output_path (Path): Filesystem path where an empty PDF file will be created.
@@ -265,7 +265,7 @@ def test_api_build_http_exception_reraise():
     def raise_http_403(*args, **kwargs):
         """
         Raise an HTTP 403 Forbidden exception.
-        
+
         This helper always raises fastapi.HTTPException with status_code=403 and detail "Forbidden".
         """
         raise HTTPException(status_code=403, detail="Forbidden")

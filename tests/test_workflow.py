@@ -334,9 +334,9 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
     def _get_on(self) -> dict:
         """
         Retrieve the workflow 'on' trigger mapping from the parsed YAML configuration.
-        
+
         PyYAML may parse the YAML key `on` as the boolean `True`; this returns the mapping found under the `on` key or under `True`, falling back to an empty dict if neither is present.
-        
+
         Returns:
             dict: Mapping of workflow triggers (e.g., `push`, `pull_request`); empty dict if no triggers are defined.
         """
@@ -349,7 +349,7 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
     def test_show_project_info_step_command(self):
         """
         Assert the build step named "Show project info" runs the project's info command.
-        
+
         Checks that the step's `run` value contains "mise run info".
         """
         step = self._get_step_by_name("Show project info")
@@ -386,7 +386,7 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
     def test_run_pytest_step_command(self):
         """
         Assert that the "Run pytest tests with coverage" job step invokes coverage using mise.
-        
+
         Checks the step named "Run pytest tests with coverage" and asserts its `run` command contains "mise run coverage".
         """
         step = self._get_step_by_name("Run pytest tests with coverage")
@@ -395,7 +395,7 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
     def test_sonarqube_step_uses_action(self):
         """
         Verify the workflow contains a SonarQube scan step that invokes the SonarQube scan action.
-        
+
         Searches the build job's steps for at least one step whose `uses` value contains
         `sonarqube-scan-action` and fails the test if none is found.
         """
