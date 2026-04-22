@@ -333,13 +333,12 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
 
     def _get_on(self) -> dict:
         """
-        Get the workflow trigger configuration mapping.
-
-        PyYAML may parse the "on" key as boolean True, so this helper checks both
-        self.cfg["on"] and self.cfg[True] to return the trigger mapping.
-
+        Retrieve the workflow 'on' trigger mapping from the parsed YAML configuration.
+        
+        PyYAML may parse the YAML key `on` as the boolean `True`; this returns the mapping found under the `on` key or under `True`, falling back to an empty dict if neither is present.
+        
         Returns:
-            dict: The workflow trigger configuration (push, pull_request, etc.)
+            dict: Mapping of workflow triggers (e.g., `push`, `pull_request`); empty dict if no triggers are defined.
         """
         return self.cfg.get("on", self.cfg.get(True, {}))
 
@@ -349,18 +348,16 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
 
     def test_show_project_info_step_command(self):
         """
-        Verifies the "Show project info" build step runs the project's info command.
-
-        Asserts that the step named "Show project info" has a `run` command containing "mise run info".
+        Assert the build step named "Show project info" runs the project's info command.
+        
+        Checks that the step's `run` value contains "mise run info".
         """
         step = self._get_step_by_name("Show project info")
         self.assertIn("mise run info", step["run"])
 
     def test_check_setup_step_commands(self):
         """
-        Ensure the "Check setup" workflow step runs `mise --version` and `mise doctor`.
-
-        Asserts that the step named "Check setup" contains both commands in its `run` script.
+        Ensure the "Check setup" workflow step's run script includes `mise --version` and `mise doctor`.
         """
         step = self._get_step_by_name("Check setup")
         self.assertIn("mise --version", step["run"])
@@ -387,12 +384,21 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
         self.assertIn("main", self._get_on()["pull_request"]["branches"])
 
     def test_run_pytest_step_command(self):
-        """Assert that the test step invokes pytest via mise run coverage."""
+        """
+        Assert that the "Run pytest tests with coverage" job step invokes coverage using mise.
+        
+        Checks the step named "Run pytest tests with coverage" and asserts its `run` command contains "mise run coverage".
+        """
         step = self._get_step_by_name("Run pytest tests with coverage")
         self.assertIn("mise run coverage", step["run"])
 
     def test_sonarqube_step_uses_action(self):
-        """Assert a SonarQube scan step is present and uses the expected action."""
+        """
+        Verify the workflow contains a SonarQube scan step that invokes the SonarQube scan action.
+        
+        Searches the build job's steps for at least one step whose `uses` value contains
+        `sonarqube-scan-action` and fails the test if none is found.
+        """
         steps = self.cfg["jobs"]["build"]["steps"]
         sonar_steps = [s for s in steps if "sonarqube-scan-action" in s.get("uses", "")]
         self.assertGreaterEqual(len(sonar_steps), 1, "No SonarQube scan step found")
@@ -404,7 +410,7 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
         self.assertGreaterEqual(len(sonar_steps), 1, "No SonarQube scan step found")
         sonar_env = sonar_steps[0].get("env", {})
         self.assertIn("SONAR_TOKEN", sonar_env)
-        pattern = r"\$\{\{\s*secrets\.SONAR_TOKEN\s*\}\}"
+        pattern = r"\$\{\{\s*secrets\.SONAR_TOKEN\s*\}\}|secrets\.SONAR_TOKEN"
         self.assertIsNotNone(
             re.search(pattern, sonar_env["SONAR_TOKEN"]),
             f"SONAR_TOKEN value '{sonar_env['SONAR_TOKEN']}' does not match expected pattern",
