@@ -16,7 +16,12 @@ RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 @app.get("/healthz")
 async def healthz():
-    """Health check endpoint for container orchestrators."""
+    """
+    Health check endpoint for container orchestrators.
+    
+    Returns:
+        dict: A JSON-like mapping with key `"status"` set to `"ok"` indicating the service is healthy.
+    """
     return {"status": "ok"}
 
 
@@ -32,12 +37,12 @@ async def healthz():
 async def api_parse(file: Annotated[UploadFile, File(...)]):
     # Create unique per-request temp path
     """
-    Parse an uploaded PDF and return the extracted structured data.
-
-    Writes the upload to a temporary file, invokes the parser on that file, and ensures the temporary file is removed afterwards. Non-HTTP exceptions are converted to an HTTP 500 error; existing HTTPException instances are re-raised unchanged.
-
+    Parse an uploaded PDF into structured data.
+    
+    Writes the upload to a temporary file and invokes the parser on that file. If an `HTTPException` is raised by the parser it is re-raised unchanged; other exceptions are converted to an `HTTPException` with status code 500 and a "Parse Error" detail. The temporary file is removed before the function returns.
+    
     Returns:
-        Parsed data (typically a dict) produced from the uploaded PDF.
+        Parsed data (typically a dict) extracted from the uploaded PDF.
     """
     temp_pdf = UPLOAD_DIR / f"temp_{uuid.uuid4()}.pdf"
     try:
@@ -45,9 +50,9 @@ async def api_parse(file: Annotated[UploadFile, File(...)]):
 
         def _save():
             """
-            Write the uploaded file's raw bytes to the temporary PDF path.
-
-            This helper reads from the outer-scope `file` object's file stream and writes its contents to the outer-scope `temp_pdf` path, creating or overwriting the file on disk.
+            Write the uploaded file's contents to the temporary PDF path, creating or overwriting the file on disk.
+            
+            This helper opens the target path in binary write mode and saves the uploaded file stream to it.
             """
             with open(temp_pdf, "wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
@@ -79,19 +84,19 @@ async def api_build(
     cv_data: dict, background_tasks: BackgroundTasks
 ):  # Add background_tasks
     """
-    Generate a PDF CV from structured data and return it as a downloadable FileResponse.
-
-    Creates a unique PDF in the results directory using the provided `cv_data`, returns a FileResponse serving that PDF with filename "my_cv.pdf" and media type "application/pdf", and schedules deletion of the generated file after the response is sent.
-
+    Generate a PDF CV from structured input data.
+    
+    Creates a uniquely named PDF in the module's results directory using `cv_data`, schedules the generated file for deletion after the response is sent, and returns a downloadable PDF response named "my_cv.pdf".
+    
     Parameters:
-        cv_data (dict): Structured CV data used to populate the generated PDF.
-        background_tasks (BackgroundTasks): FastAPI BackgroundTasks instance used to schedule post-response cleanup.
-
+        cv_data (dict): Structured CV content used to populate the generated PDF.
+        background_tasks (BackgroundTasks): FastAPI BackgroundTasks used to schedule post-response cleanup of the generated file.
+    
     Returns:
-        FileResponse: A response streaming the generated PDF file to the client.
-
+        FileResponse: A response streaming the generated PDF file with filename "my_cv.pdf" and media type "application/pdf".
+    
     Raises:
-        HTTPException: With status 500 if PDF generation fails or an internal error occurs; any incoming HTTPException is re-raised unchanged.
+        HTTPException: Re-raises any incoming `HTTPException` unchanged. If PDF generation fails or an internal error occurs, deletes any partially created file and raises `HTTPException(status_code=500, detail="Builder Error: <error>")`.
     """
     output_pdf_path = RESULTS_DIR / f"generated_cv_{uuid.uuid4()}.pdf"
     try:

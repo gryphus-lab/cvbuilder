@@ -80,9 +80,11 @@ def run_build_from_file(
 
 def main() -> None:
     """
-    Parse command-line arguments and execute the selected subcommand ("parse" or "build").
-
-    Supports a "parse" subcommand to convert a CV PDF to JSON and a "build" subcommand to generate a CV PDF from JSON (optionally with a photo). Prints progress and success messages to stdout and exits the process with status code 1 on errors such as missing inputs or invalid JSON.
+    Parse CLI arguments and run either the "parse" or "build" subcommand.
+    
+    The "parse" subcommand converts a CV PDF to structured JSON and saves it to disk.
+    The "build" subcommand generates a CV PDF from structured JSON and an optional photo.
+    Progress and success messages are printed to stdout; on errors (for example missing inputs or invalid JSON) the process exits with status code 1.
     """
     parser = argparse.ArgumentParser(description="CV Parser & Builder")
     subparsers = parser.add_subparsers(dest="command", required=True)
