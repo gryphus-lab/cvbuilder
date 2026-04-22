@@ -17,10 +17,10 @@ RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 @app.get("/healthz")
 async def healthz():
     """
-    Health check endpoint for container orchestrators.
-
+    Health check endpoint used by orchestration and monitoring systems.
+    
     Returns:
-        dict: A JSON-like mapping with key `"status"` set to `"ok"` indicating the service is healthy.
+        dict: Mapping `{"status": "ok"}` indicating the service is healthy.
     """
     return {"status": "ok"}
 
@@ -37,10 +37,10 @@ async def healthz():
 async def api_parse(file: Annotated[UploadFile, File(...)]):
     # Create unique per-request temp path
     """
-    Parse an uploaded PDF into structured data.
-
-    Writes the upload to a temporary file and invokes the parser on that file. If an `HTTPException` is raised by the parser it is re-raised unchanged; other exceptions are converted to an `HTTPException` with status code 500 and a "Parse Error" detail. The temporary file is removed before the function returns.
-
+    Parse an uploaded PDF and return structured data extracted from it.
+    
+    The uploaded file is written to a temporary PDF and passed to the parser; the temporary file is removed before returning. If the parser raises an `HTTPException` it is re-raised unchanged; other exceptions are converted to an `HTTPException` with status code 500 and a `"Parse Error: ..."` detail.
+    
     Returns:
         Parsed data (typically a dict) extracted from the uploaded PDF.
     """
@@ -50,9 +50,9 @@ async def api_parse(file: Annotated[UploadFile, File(...)]):
 
         def _save():
             """
-            Write the uploaded file's contents to the temporary PDF path, creating or overwriting the file on disk.
-
-            This helper opens the target path in binary write mode and saves the uploaded file stream to it.
+            Write the uploaded file stream to the temporary PDF path, creating or overwriting the file on disk.
+            
+            This helper persists the incoming upload to `temp_pdf`. It does not return a value.
             """
             with open(temp_pdf, "wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)

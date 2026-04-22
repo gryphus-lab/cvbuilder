@@ -48,12 +48,12 @@ def test_api_build_success():
     # Mock run_build_from_data to simulate creating a file on disk
     def side_effect_create_file(data, output_path, photo):
         """
-        Create an empty file at output_path to simulate a generated output file during tests.
-
+        Create an empty file at output_path to simulate a generated output file for tests.
+        
         Parameters:
-            data: Input data for the builder (unused).
-            output_path: Path-like object where an empty file will be created.
-            photo: Optional photo data passed to the builder (unused).
+            data: Builder input data (not used).
+            output_path (pathlike): Path where an empty file will be created; the file will exist after this call.
+            photo: Optional photo data passed to the builder (not used).
         """
         output_path.touch()  # Create the empty file so exists() returns True
 
@@ -91,10 +91,10 @@ def test_api_build_file_not_created():
 
     def raise_http_exception(*args, **kwargs):
         """
-        Raise an HTTP 500 error with detail "PDF generation failed."
-
+        Raise an HTTP 500 HTTPException with detail "PDF generation failed."
+        
         Raises:
-            fastapi.HTTPException: HTTP status code 500 with detail "PDF generation failed."
+            fastapi.HTTPException: status_code 500 with detail "PDF generation failed."
         """
         raise HTTPException(status_code=500, detail="PDF generation failed.")
 
@@ -132,13 +132,13 @@ def test_api_parse_temp_file_cleaned_up_on_success():
 
     def capturing_run_parse(pdf_path):
         """
-        Capture the provided PDF path by appending it to `captured_temp_path` and return `mock_data`.
-
+        Append the given PDF path to the test's captured_temp_path list and return the prepared mock_data.
+        
         Parameters:
-            pdf_path: The path object passed by the code under test; it will be appended to the global `captured_temp_path` list.
-
+            pdf_path (str | pathlib.Path): Path passed by the code under test; appended to the global `captured_temp_path` list.
+        
         Returns:
-            The preconfigured `mock_data` object.
+            dict: The preconfigured `mock_data` object.
         """
         captured_temp_path.append(pdf_path)
         return mock_data
@@ -161,11 +161,11 @@ def test_api_parse_temp_file_cleaned_up_on_error():
 
     def capturing_error_run_parse(pdf_path):
         """
-        Capture the provided PDF path by appending it to the global `captured_temp_path` list, then raise a RuntimeError to simulate a parser crash.
-
+        Append the given PDF path to the global `captured_temp_path` list and then raise a `RuntimeError` to simulate a parser crash.
+        
         Parameters:
-            pdf_path (pathlib.Path | str): Path to the temporary PDF file passed to the parser; this value is appended to the global `captured_temp_path` list.
-
+            pdf_path (pathlib.Path | str): The temporary PDF file path provided to the parser; appended to the global `captured_temp_path` list.
+        
         Raises:
             RuntimeError: Always raised with message "Parser crashed".
         """
@@ -218,12 +218,12 @@ def test_api_build_output_path_in_results_dir():
 
     def side_effect_capture(data, output_path, photo):
         """
-        Capture the provided output_path for later inspection and create an empty file at that path.
-
+        Capture the provided output path for later inspection and create an empty file at that location for tests.
+        
         Parameters:
-            data: Input data passed to the builder (not used by this side effect).
-            output_path (pathlib.Path): Path where the test output file should be created; appended to a captured list.
-            photo: Photo argument passed to the builder (not used by this side effect).
+            data: Input data passed to the builder (unused by this side effect).
+            output_path (pathlib.Path): Path where the test output file will be created and appended to the captured list.
+            photo: Photo argument passed to the builder (unused by this side effect).
         """
         captured_paths.append(output_path)
         output_path.touch()
@@ -243,11 +243,11 @@ def test_api_build_empty_dict_input():
     def side_effect_create_file(data, output_path, photo):
         """
         Create an empty file at the given output path.
-
+        
         Parameters:
-            data (dict): Input CV data (ignored by this side effect).
-            output_path (Path): Filesystem path where an empty PDF file will be created.
-            photo: Optional photo input (ignored by this side effect).
+            data (dict): Input CV data; ignored by this side effect.
+            output_path (Path): Filesystem path where an empty file will be created.
+            photo: Optional photo input; ignored by this side effect.
         """
         output_path.touch()
 
