@@ -56,15 +56,15 @@ def run_build_from_file(
 ):
     """
     Generate a CV PDF from structured data loaded from a JSON file.
-    
+
     Parameters:
         json_path (Path): Path to the input JSON file containing CV data.
         output_path (Path): Destination path for the generated PDF.
         photo_path (Path | None): Optional path to a photo to include in the CV.
-    
+
     Returns:
         Path: The path to the generated PDF (the provided `output_path`).
-    
+
     Raises:
         FileNotFoundError: If `json_path` does not exist.
         json.JSONDecodeError: If the file contains invalid JSON.

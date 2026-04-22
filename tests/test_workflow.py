@@ -315,13 +315,13 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
     def _get_step_by_name(self, name: str) -> dict:
         """
         Locate and return the build job step whose `name` equals the provided value.
-        
+
         Parameters:
             name (str): The display name of the step to find within self.cfg["jobs"]["build"]["steps"].
-        
+
         Returns:
             dict: The first step mapping with a matching `"name"` key.
-        
+
         Raises:
             KeyError: If no step with the given name is present.
         """
@@ -345,7 +345,7 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
     def test_install_dependencies_step_command(self):
         """
         Verify the "Install dependencies" workflow step executes the project's bootstrap command.
-        
+
         Asserts that the step named "Install dependencies" has a `run` command containing "mise run bootstrap".
         """
         step = self._get_step_by_name("Install dependencies")
@@ -354,7 +354,7 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
     def test_show_project_info_step_command(self):
         """
         Verify the build step named "Show project info" runs the project's info command.
-        
+
         Asserts that the step's `run` command contains the substring "mise run info".
         """
         step = self._get_step_by_name("Show project info")
