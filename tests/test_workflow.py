@@ -6,6 +6,7 @@ falling back to raw-text assertions so the suite never requires an
 extra install just to run.
 """
 
+import re
 import unittest
 from pathlib import Path
 
@@ -340,7 +341,7 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
         Returns:
             dict: The workflow trigger configuration (push, pull_request, etc.)
         """
-        return self.cfg.get("on", self.cfg.get(True))
+        return self.cfg.get("on", self.cfg.get(True, {}))
 
     def test_install_dependencies_step_command(self):
         step = self._get_step_by_name("Install dependencies")
@@ -403,7 +404,11 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
         self.assertGreaterEqual(len(sonar_steps), 1, "No SonarQube scan step found")
         sonar_env = sonar_steps[0].get("env", {})
         self.assertIn("SONAR_TOKEN", sonar_env)
-        self.assertIn("secrets.SONAR_TOKEN", sonar_env["SONAR_TOKEN"])
+        pattern = r"\$\{\{\s*secrets\.SONAR_TOKEN\s*\}\}|secrets\.SONAR_TOKEN"
+        self.assertIsNotNone(
+            re.search(pattern, sonar_env["SONAR_TOKEN"]),
+            f"SONAR_TOKEN value '{sonar_env['SONAR_TOKEN']}' does not match expected pattern",
+        )
 
     def test_on_trigger_keys(self):
         """Assert the workflow has both push and pull_request trigger keys."""

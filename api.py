@@ -20,7 +20,15 @@ async def healthz():
     return {"status": "ok"}
 
 
-@app.post("/parse")
+@app.post(
+    "/parse",
+    responses={
+        "500": {
+            "description": "Internal Server Error",
+            "content": {"application/json": {"example": {"detail": "string"}}},
+        }
+    },
+)
 async def api_parse(file: Annotated[UploadFile, File(...)]):
     # Create unique per-request temp path
     """
@@ -58,7 +66,15 @@ async def api_parse(file: Annotated[UploadFile, File(...)]):
             temp_pdf.unlink()
 
 
-@app.post("/build")
+@app.post(
+    "/build",
+    responses={
+        "500": {
+            "description": "Internal Server Error",
+            "content": {"application/json": {"example": {"detail": "string"}}},
+        }
+    },
+)
 async def api_build(
     cv_data: dict, background_tasks: BackgroundTasks
 ):  # Add background_tasks
@@ -95,6 +111,8 @@ async def api_build(
         )
     except HTTPException:
         # Re-raise HTTPException unchanged
+        if output_pdf_path.exists():
+            output_pdf_path.unlink()
         raise
     except Exception as e:
         # If we failed before returning the response, clean up now

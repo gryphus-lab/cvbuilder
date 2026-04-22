@@ -8,8 +8,10 @@ from src.builder import CVBuilder
 
 # --- LOGIC FUNCTIONS ---
 
+DEFAULT_CV_JSON = Path("results/cv_data.json")
 
-def run_parse(pdf_path: Path, output_path: Path = Path("results/cv_data.json")):
+
+def run_parse(pdf_path: Path, output_path: Path = DEFAULT_CV_JSON):
     """
     Parse a CV PDF into structured JSON and save it to disk.
 
@@ -90,11 +92,11 @@ def main() -> None:
         "pdf_path", nargs="?", type=Path, default=Path("resources/cv_original.pdf")
     )
     parse_p.add_argument(
-        "-o", "--output", type=Path, default=Path("results/cv_data.json")
+        "-o", "--output", type=Path, default=DEFAULT_CV_JSON
     )
 
     build_p = subparsers.add_parser("build")
-    build_p.add_argument("--json", type=Path, default=Path("results/cv_data.json"))
+    build_p.add_argument("--json", type=Path, default=DEFAULT_CV_JSON)
     build_p.add_argument("--photo", type=Path)
     build_p.add_argument("--output", type=Path, default=Path("results/cv_updated.pdf"))
 
