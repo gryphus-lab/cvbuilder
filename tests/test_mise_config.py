@@ -605,7 +605,7 @@ class TestBootstrapRunCommandExactValues(unittest.TestCase):
 
     def test_first_command_uses_sysconfig_stdlib_path(self):
         """The brew symlink command must target the Python stdlib path from sysconfig."""
-        self.assertIn('sysconfig.get_path("stdlib")', self.run_cmds[0])
+        self.assertIn('sysconfig.get_path(\\"stdlib\\")', self.run_cmds[0])
 
     def test_first_command_uses_brew_prefix_lib(self):
         """The brew symlink command must source files from $(brew --prefix)/lib/*."""
