@@ -753,14 +753,23 @@ def _parse_generic_section(lines: list[str], start_idx: int) -> tuple[list[str],
 
 
 def _merge_bulleted_section_lines(
-    lines: list[str], *, is_skills_section: bool = False
+    lines: list[str],
+    *,
+    is_skills_section: bool = False,
+    merge_only_if_bullets: bool = False,
 ) -> list[str]:
     """
     Merge multi-line bullet entries.
+    If merge_only_if_bullets is True, only merge if bullets are present in the lines.
     Complexity reduced by flattening the state-check logic.
     """
-    merged = []
     bullet_prefixes = ("•", "¢", "°")
+    has_bullets = any(line.strip().startswith(bullet_prefixes) for line in lines)
+
+    if merge_only_if_bullets and not has_bullets:
+        return [line for line in lines if line.strip()]  # Just clean empty lines
+
+    merged = []
 
     for line in lines:
         stripped = line.strip()
@@ -996,7 +1005,7 @@ def _handle_languages_section(
         tuple[list[str], int]: A tuple where the first element is the list of sanitized language entries (in original order) and the second element is the index of the next line to process after this section.
     """
     content, next_idx = _parse_generic_section(lines, start_idx)
-    content = _merge_bulleted_section_lines(content)
+    content = _merge_bulleted_section_lines(content, merge_only_if_bullets=True)
     languages = []
 
     for content_line in content:
@@ -1062,7 +1071,7 @@ def _handle_generic_fallback_section(
         tuple[list[str], int]: Sanitized section lines and the index of the first line after the section.
     """
     content, next_idx = _parse_generic_section(lines, start_idx)
-    content = _merge_bulleted_section_lines(content)
+    content = _merge_bulleted_section_lines(content, merge_only_if_bullets=True)
     return [final_sanitize(item) for item in content], next_idx
 
 
