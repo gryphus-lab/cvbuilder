@@ -394,13 +394,13 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
         """Assert a SonarQube scan step is present and uses the expected action."""
         steps = self.cfg["jobs"]["build"]["steps"]
         sonar_steps = [s for s in steps if "sonarqube-scan-action" in s.get("uses", "")]
-        self.assertTrue(len(sonar_steps) >= 1, "No SonarQube scan step found")
+        self.assertGreaterEqual(len(sonar_steps), 1, "No SonarQube scan step found")
 
     def test_sonarqube_step_has_sonar_token_env(self):
         """Assert the SonarQube scan step provides SONAR_TOKEN from secrets."""
         steps = self.cfg["jobs"]["build"]["steps"]
         sonar_steps = [s for s in steps if "sonarqube-scan-action" in s.get("uses", "")]
-        self.assertTrue(len(sonar_steps) >= 1, "No SonarQube scan step found")
+        self.assertGreaterEqual(len(sonar_steps), 1, "No SonarQube scan step found")
         sonar_env = sonar_steps[0].get("env", {})
         self.assertIn("SONAR_TOKEN", sonar_env)
         self.assertIn("secrets.SONAR_TOKEN", sonar_env["SONAR_TOKEN"])
