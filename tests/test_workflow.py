@@ -404,7 +404,7 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
         self.assertGreaterEqual(len(sonar_steps), 1, "No SonarQube scan step found")
         sonar_env = sonar_steps[0].get("env", {})
         self.assertIn("SONAR_TOKEN", sonar_env)
-        pattern = r"\$\{\{\s*secrets\.SONAR_TOKEN\s*\}\}|secrets\.SONAR_TOKEN"
+        pattern = r"\$\{\{\s*secrets\.SONAR_TOKEN\s*\}\}"
         self.assertIsNotNone(
             re.search(pattern, sonar_env["SONAR_TOKEN"]),
             f"SONAR_TOKEN value '{sonar_env['SONAR_TOKEN']}' does not match expected pattern",
