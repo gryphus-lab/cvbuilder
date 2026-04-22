@@ -82,9 +82,9 @@ run = 'docker run --rm -v "$PWD:/app" gryphus-lab/cvbuilder sh -c "python main.p
 depends = ["docker-build"]
 
 [tasks.docker-compose-up]
-description = "Run docker-compose using the Dockerfile"
+description = "Run docker-compose up using the Dockerfile"
 run = "docker compose up --build -d"
 
 [tasks.docker-compose-down]
-description = "Run docker-compose using the Dockerfile"
-run = "docker compose down"
+description = "Run docker-compose down using the Dockerfile and clean up resources"
+run = "docker compose down --volumes --remove-orphans --rmi all"
