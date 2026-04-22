@@ -756,12 +756,10 @@ def _merge_bulleted_section_lines(
     lines: list[str], *, is_skills_section: bool = False
 ) -> list[str]:
     """
-    Merge multi-line bullet entries into single logical items.
-
-    Bullet entries start with common bullet markers and continuation lines are joined to the active item.
+    Merge multi-line bullet entries.
+    Complexity reduced by flattening the state-check logic.
     """
     merged = []
-    current = None
     bullet_prefixes = ("•", "¢", "°")
 
     for line in lines:
@@ -770,26 +768,15 @@ def _merge_bulleted_section_lines(
             continue
 
         prefix = next((p for p in bullet_prefixes if stripped.startswith(p)), None)
-        is_category_heading = (
-            is_skills_section and "&" in stripped and ":" not in stripped
-        )
+        clean_text = stripped[len(prefix) :].strip() if prefix else stripped
 
-        if prefix:
-            if current is not None:
-                merged.append(current)
-            current = stripped[len(prefix) :].strip()
-        elif is_category_heading:
-            if current is not None:
-                merged.append(current)
-                current = None
-            merged.append(stripped)
-        elif current is not None:
-            current += " " + stripped
+        is_heading = is_skills_section and "&" in stripped and ":" not in stripped
+        is_new_item = prefix or is_heading
+
+        if is_new_item or not merged:
+            merged.append(clean_text)
         else:
-            merged.append(stripped)
-
-    if current is not None:
-        merged.append(current)
+            merged[-1] += f" {clean_text}"
 
     return merged
 
@@ -1037,8 +1024,9 @@ def _handle_competencies_and_skills_section(
     """
     content, next_idx = _parse_generic_section(lines, start_idx)
     content = _merge_bulleted_section_lines(content, is_skills_section=True)
+
     skills_dict = {}
-    current_cat = None
+    current_cat = "General"
 
     for line in content:
         stripped = line.strip()
@@ -1047,28 +1035,19 @@ def _handle_competencies_and_skills_section(
 
         if ":" not in stripped and "&" in stripped:
             current_cat = final_sanitize(stripped)
-            if current_cat not in skills_dict:
-                skills_dict[current_cat] = []
+            skills_dict.setdefault(current_cat, [])
             continue
 
-        if current_cat is None:
-            current_cat = "General"
-            skills_dict[current_cat] = []
+        if ":" in stripped:
+            cat_part, values_part = stripped.split(":", 1)
+            target_key = f"{current_cat} - {final_sanitize(cat_part)}"
 
-        bullet_text = stripped
-        if ":" in bullet_text:
-            cat_part, values_part = bullet_text.split(":", 1)
-            nested_cat = f"{current_cat} - {final_sanitize(cat_part)}"
-            if nested_cat not in skills_dict:
-                skills_dict[nested_cat] = []
             skills = [
-                final_sanitize(s.strip())
-                for s in re.split(r"[;,]", values_part)
-                if s.strip()
+                final_sanitize(s) for s in re.split(r"[;,]", values_part) if s.strip()
             ]
-            skills_dict[nested_cat].extend(skills)
+            skills_dict.setdefault(target_key, []).extend(skills)
         else:
-            skills_dict[current_cat].append(final_sanitize(bullet_text))
+            skills_dict.setdefault(current_cat, []).append(final_sanitize(stripped))
 
     return skills_dict, next_idx
 
