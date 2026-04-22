@@ -213,7 +213,7 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
 
     def test_top_level_permissions_contents_read(self):
         """
-        Assert that the workflow's top-level `permissions.contents` is "read".
+        Verify the workflow's top-level permissions set the `contents` permission to "read".
         """
         self.assertEqual(self.cfg["permissions"]["contents"], "read")
 
@@ -314,14 +314,14 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
 
     def _get_step_by_name(self, name: str) -> dict:
         """
-        Locate the build job step whose `name` equals the given value.
-
+        Locate and return the build job step whose `name` equals the provided value.
+        
         Parameters:
-            name (str): Step display name to locate in self.cfg["jobs"]["build"]["steps"].
-
+            name (str): The display name of the step to find within self.cfg["jobs"]["build"]["steps"].
+        
         Returns:
-            dict: The first step mapping with matching `"name"`.
-
+            dict: The first step mapping with a matching `"name"` key.
+        
         Raises:
             KeyError: If no step with the given name is present.
         """
@@ -343,14 +343,19 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
         return self.cfg.get("on", self.cfg.get(True, {}))
 
     def test_install_dependencies_step_command(self):
+        """
+        Verify the "Install dependencies" workflow step executes the project's bootstrap command.
+        
+        Asserts that the step named "Install dependencies" has a `run` command containing "mise run bootstrap".
+        """
         step = self._get_step_by_name("Install dependencies")
         self.assertIn("mise run bootstrap", step["run"])
 
     def test_show_project_info_step_command(self):
         """
-        Assert the build step named "Show project info" runs the project's info command.
-
-        Checks that the step's `run` value contains "mise run info".
+        Verify the build step named "Show project info" runs the project's info command.
+        
+        Asserts that the step's `run` command contains the substring "mise run info".
         """
         step = self._get_step_by_name("Show project info")
         self.assertIn("mise run info", step["run"])
@@ -423,7 +428,9 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
         self.assertIn("pull_request", triggers)
 
     def test_job_build_runs_on_is_string(self):
-        """Assert runs-on is a plain string (not a list or mapping)."""
+        """
+        Check that the `build` job's `runs-on` value is a string.
+        """
         self.assertIsInstance(self.cfg["jobs"]["build"]["runs-on"], str)
 
 
