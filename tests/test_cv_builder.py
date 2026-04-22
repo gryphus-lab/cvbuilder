@@ -216,13 +216,13 @@ def test_render_html_contains_contact_info(builder, sample_cv_data):
 
 def test_render_html_contains_personal_identity_info(builder, sample_cv_data):
     """Extended personal info fields should be rendered in the header when present."""
-    sample_cv_data["personal_info"]["date_of_birth"] = "10.03.1985"
+    sample_cv_data["personal_info"]["date_of_birth"] = "01.02.1985"
     sample_cv_data["personal_info"]["nationality"] = "Swiss"
     sample_cv_data["personal_info"]["permit"] = "C"
 
     html = builder._render_html(sample_cv_data)
 
-    assert "Date of Birth: 10.03.1985" in html
+    assert "Date of Birth: 01.02.1985" in html
     assert "Nationality: Swiss" in html
     assert "Permit: C" in html
 

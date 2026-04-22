@@ -755,7 +755,7 @@ def test_extract_address_phone_like_line_excluded():
 
 
 def test_extract_address_linkedin_line_excluded():
-    result = _extract_address("LinkedIn: linkedin.com/in/abhaysingh1978")
+    result = _extract_address("LinkedIn: linkedin.com/in/maxmustermann")
     assert result is None
 
 
@@ -857,14 +857,14 @@ def test_parse_personal_info_extracts_dob():
 
 def test_parse_personal_info_extracts_address_from_combined_header():
     lines = [
-        "Abhay Singh",
-        "Principal Solution Architect",
-        "Zürich, Switzerland | +41793642780 | abhay.singh@pm.me",
+        "Max Mustermann",
+        "Enterprise Architect",
+        "Zürich, Switzerland | +41791234567 | max.mustermann@pm.me",
     ]
     info = _parse_personal_info(lines)
     assert info["address"] == "Zürich, Switzerland"
-    assert info["phone"] == "+41793642780"
-    assert info["email"] == "abhay.singh@pm.me"
+    assert info["phone"] == "+41791234567"
+    assert info["email"] == "max.mustermann@pm.me"
 
 
 def test_parse_personal_info_extracts_nationality():
