@@ -9,7 +9,9 @@ LDFLAGS = "-L/opt/homebrew/lib"
 LIBRARY_PATH = "/opt/homebrew/lib"
 WEASYPRINT_DLL_DIRECTORIES = "/opt/homebrew/lib"
 PROJECT_NAME = "{{ config_root | basename }}"
-_.python.venv = { path = ".venv", create = true, uv_create_args = [ "--system-site-packages", ] }
+_.python.venv = { path = ".venv", create = true, uv_create_args = [
+  "--system-site-packages",
+] }
 UV_PROJECT_ENVIRONMENT = ".venv"
 
 [settings]
@@ -18,8 +20,8 @@ python.uv_venv_auto = "create|source"
 [tasks.bootstrap]
 description = "Install dependencies"
 run = [
-    'if [[ "$OSTYPE" == "darwin"* ]]; then ln -sf $(brew --prefix)/lib/* $(python -c "import sysconfig; print(sysconfig.get_path(\"stdlib\"))") >/dev/null 2>&1; fi',
-    "uv pip install -r requirements.txt",
+  'if [[ "$OSTYPE" == "darwin"* ]]; then ln -sf $(brew --prefix)/lib/* $(python -c "import sysconfig; print(sysconfig.get_path(\"stdlib\"))") >/dev/null 2>&1; fi',
+  "uv pip install -r requirements.txt",
 ]
 
 [tasks.info]
