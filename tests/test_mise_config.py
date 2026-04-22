@@ -509,6 +509,11 @@ class TestPythonVenvConfig(unittest.TestCase):
     """
 
     def setUp(self):
+        """
+        Prepare the test fixture by loading the repository's mise.toml and extracting the Python virtualenv configuration.
+        
+        Loads the parsed configuration into self.config and sets self.venv_cfg to the nested mapping at env._.python.venv.
+        """
         self.config = load_mise_config()
         # _.python.venv is expressed as dotted key _.python.venv in [env]
         # tomllib parses dotted keys into nested dicts
@@ -566,6 +571,13 @@ class TestBootstrapRunCommandExactValues(unittest.TestCase):
     """
 
     def setUp(self):
+        """
+        Prepare the test fixture by loading the repository's mise.toml and extracting the bootstrap task run commands.
+        
+        Sets:
+            self.config (dict): Parsed mise.toml configuration.
+            self.run_cmds (list): The `tasks.bootstrap.run` command list from the parsed config.
+        """
         self.config = load_mise_config()
         self.run_cmds = self.config["tasks"]["bootstrap"]["run"]
 
