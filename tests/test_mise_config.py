@@ -500,5 +500,112 @@ class TestAdditionalTasks(unittest.TestCase):
             )
 
 
+class TestPythonVenvConfig(unittest.TestCase):
+    """
+    Tests for the _.python.venv configuration block whose uv_create_args
+    array was reformatted from inline to multiline in this PR.
+
+    Verifies that the reformatting preserved all semantic values.
+    """
+
+    def setUp(self):
+        self.config = load_mise_config()
+        # _.python.venv is expressed as dotted key _.python.venv in [env]
+        # tomllib parses dotted keys into nested dicts
+        self.venv_cfg = self.config["env"]["_"]["python"]["venv"]
+
+    def test_venv_config_exists(self):
+        """The _.python.venv key must be present under [env]."""
+        self.assertIn("_", self.config["env"])
+        self.assertIn("python", self.config["env"]["_"])
+        self.assertIn("venv", self.config["env"]["_"]["python"])
+
+    def test_venv_path_is_dotenv(self):
+        """The venv path must be '.venv' after reformatting."""
+        self.assertEqual(self.venv_cfg["path"], ".venv")
+
+    def test_venv_create_is_true(self):
+        """The create flag must be True after reformatting."""
+        self.assertIs(self.venv_cfg["create"], True)
+
+    def test_uv_create_args_is_list(self):
+        """uv_create_args must be a list (multiline array reformatting preserves type)."""
+        self.assertIsInstance(self.venv_cfg["uv_create_args"], list)
+
+    def test_uv_create_args_contains_system_site_packages(self):
+        """uv_create_args must contain '--system-site-packages' after reformatting."""
+        self.assertIn("--system-site-packages", self.venv_cfg["uv_create_args"])
+
+    def test_uv_create_args_has_exactly_one_element(self):
+        """uv_create_args must have exactly one element; reformatting must not add or remove items."""
+        self.assertEqual(len(self.venv_cfg["uv_create_args"]), 1)
+
+    def test_uv_create_args_first_element_exact(self):
+        """The sole uv_create_args element must be exactly '--system-site-packages'."""
+        self.assertEqual(self.venv_cfg["uv_create_args"][0], "--system-site-packages")
+
+    def test_venv_config_has_no_extra_keys(self):
+        """The venv config must contain only 'path', 'create', and 'uv_create_args'."""
+        expected_keys = {"path", "create", "uv_create_args"}
+        self.assertEqual(set(self.venv_cfg.keys()), expected_keys)
+
+    # Regression: multiline reformatting must not introduce duplicate entries
+    def test_uv_create_args_no_duplicates(self):
+        """uv_create_args must not contain duplicate entries after reformatting."""
+        args = self.venv_cfg["uv_create_args"]
+        self.assertEqual(len(args), len(set(args)))
+
+
+class TestBootstrapRunCommandExactValues(unittest.TestCase):
+    """
+    Tests that verify the exact string content of the bootstrap run commands
+    after the indentation reformatting in this PR.
+
+    The reformatting changed indentation from 4 spaces to 2 spaces inside
+    the TOML array literal; the parsed string values must be identical.
+    """
+
+    def setUp(self):
+        self.config = load_mise_config()
+        self.run_cmds = self.config["tasks"]["bootstrap"]["run"]
+
+    def test_second_command_exact_string(self):
+        """The second bootstrap command must be exactly 'uv pip install -r requirements.txt'."""
+        self.assertEqual(self.run_cmds[1], "uv pip install -r requirements.txt")
+
+    def test_second_command_uses_requirements_txt(self):
+        """The second bootstrap command must reference requirements.txt."""
+        self.assertIn("requirements.txt", self.run_cmds[1])
+
+    def test_second_command_uses_pip_install(self):
+        """The second bootstrap command must invoke 'pip install'."""
+        self.assertIn("pip install", self.run_cmds[1])
+
+    def test_second_command_uses_r_flag(self):
+        """The second bootstrap command must use the '-r' flag."""
+        self.assertIn("-r", self.run_cmds[1])
+
+    def test_first_command_redirects_stdout_and_stderr(self):
+        """The macOS brew symlink command must suppress output with >/dev/null 2>&1."""
+        self.assertIn(">/dev/null 2>&1", self.run_cmds[0])
+
+    def test_first_command_uses_sysconfig_stdlib_path(self):
+        """The brew symlink command must target the Python stdlib path from sysconfig."""
+        self.assertIn('sysconfig.get_path("stdlib")', self.run_cmds[0])
+
+    def test_first_command_uses_brew_prefix_lib(self):
+        """The brew symlink command must source files from $(brew --prefix)/lib/*."""
+        self.assertIn("$(brew --prefix)/lib/*", self.run_cmds[0])
+
+    # Regression: reformatting must not corrupt the OSTYPE comparison string
+    def test_first_command_ostype_comparison_value(self):
+        """The OSTYPE comparison must check for 'darwin*' (not another platform)."""
+        self.assertIn('"darwin"*', self.run_cmds[0])
+
+    def test_run_list_length_unchanged(self):
+        """The bootstrap run list must still have exactly 2 commands after reformatting."""
+        self.assertEqual(len(self.run_cmds), 2)
+
+
 if __name__ == "__main__":
     unittest.main()
