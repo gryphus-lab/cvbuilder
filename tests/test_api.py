@@ -49,7 +49,7 @@ def test_api_build_success():
     def side_effect_create_file(data, output_path, photo):
         """
         Create an empty file at output_path to simulate a generated output file during tests.
-        
+
         Parameters:
             data: The input data for building the file (unused).
             output_path: Path-like object where an empty file will be created.
@@ -92,11 +92,11 @@ def test_api_build_file_not_created():
     def raise_http_exception(*args, **kwargs):
         """
         Raise an HTTPException with status code 500 and detail "PDF generation failed."
-        
+
         Parameters:
             *args: Ignored.
             **kwargs: Ignored.
-        
+
         Raises:
             fastapi.HTTPException: Always raised with status_code=500 and detail "PDF generation failed."
         """
@@ -139,7 +139,9 @@ def test_api_parse_temp_file_cleaned_up_on_success():
     assert response.status_code == 200
     # Verify temp file was cleaned up (does not exist after request)
     assert len(captured_temp_path) == 1
-    assert not captured_temp_path[0].exists(), "Temp file was not cleaned up after success"
+    assert not captured_temp_path[0].exists(), (
+        "Temp file was not cleaned up after success"
+    )
 
 
 def test_api_parse_temp_file_cleaned_up_on_error():
@@ -156,7 +158,9 @@ def test_api_parse_temp_file_cleaned_up_on_error():
 
     assert response.status_code == 500
     assert len(captured_temp_path) == 1
-    assert not captured_temp_path[0].exists(), "Temp file was not cleaned up after error"
+    assert not captured_temp_path[0].exists(), (
+        "Temp file was not cleaned up after error"
+    )
 
 
 def test_api_parse_missing_file_field():

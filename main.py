@@ -35,12 +35,12 @@ def run_build_from_data(
 ):
     """
     Build a CV PDF from structured CV data.
-    
+
     Parameters:
         cv_data (dict): Structured CV data as produced by the parser.
         output_path (Path): Destination path for the generated PDF.
         photo_path (Path | None): Optional path to a photo to include in the CV.
-    
+
     Returns:
         Path: Path to the generated PDF (the provided `output_path`).
     """
@@ -54,15 +54,15 @@ def run_build_from_file(
 ):
     """
     Create a CV PDF from structured CV data loaded from a JSON file.
-    
+
     Parameters:
         json_path (Path): Path to the input JSON file containing CV data.
         output_path (Path): Destination path for the generated PDF.
         photo_path (Path | None): Optional path to a photo to include in the CV.
-    
+
     Returns:
         Path: The `output_path` pointing to the generated PDF file.
-    
+
     Raises:
         FileNotFoundError: If `json_path` does not exist.
     """
@@ -79,7 +79,7 @@ def run_build_from_file(
 def main() -> None:
     """
     Parse command-line arguments and execute the selected subcommand ("parse" or "build").
-    
+
     Supports a "parse" subcommand to convert a CV PDF to JSON and a "build" subcommand to generate a CV PDF from JSON (optionally with a photo). Prints progress and success messages to stdout and exits the process with status code 1 on errors such as missing inputs or invalid JSON.
     """
     parser = argparse.ArgumentParser(description="CV Parser & Builder")
