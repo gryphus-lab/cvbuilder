@@ -330,6 +330,18 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
                 return step
         raise KeyError(f"Step '{name}' not found")
 
+    def _get_on(self) -> dict:
+        """
+        Get the workflow trigger configuration mapping.
+
+        PyYAML may parse the "on" key as boolean True, so this helper checks both
+        self.cfg["on"] and self.cfg[True] to return the trigger mapping.
+
+        Returns:
+            dict: The workflow trigger configuration (push, pull_request, etc.)
+        """
+        return self.cfg.get("on", self.cfg.get(True))
+
     def test_install_dependencies_step_command(self):
         step = self._get_step_by_name("Install dependencies")
         self.assertIn("mise run bootstrap", step["run"])
@@ -367,11 +379,11 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
 
     def test_on_push_branches(self):
         """Assert that the workflow's on.push.branches configuration includes 'main'."""
-        self.assertIn("main", self.cfg["on"]["push"]["branches"])
+        self.assertIn("main", self._get_on()["push"]["branches"])
 
     def test_on_pull_request_branches(self):
         """Check that the workflow's pull_request trigger includes the main branch."""
-        self.assertIn("main", self.cfg["on"]["pull_request"]["branches"])
+        self.assertIn("main", self._get_on()["pull_request"]["branches"])
 
     def test_run_pytest_step_command(self):
         """Assert that the test step invokes pytest via mise run coverage."""
@@ -395,7 +407,7 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
 
     def test_on_trigger_keys(self):
         """Assert the workflow has both push and pull_request trigger keys."""
-        triggers = self.cfg["on"]
+        triggers = self._get_on()
         self.assertIn("push", triggers)
         self.assertIn("pull_request", triggers)
 
