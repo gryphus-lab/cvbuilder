@@ -67,8 +67,7 @@ async def api_parse(file: Annotated[UploadFile, File(...)]):
         # Chain other exceptions
         raise HTTPException(status_code=500, detail=f"Parse Error: {e!s}") from e
     finally:
-        if temp_pdf.exists():
-            temp_pdf.unlink()
+        temp_pdf.unlink(missing_ok=True)
 
 
 @app.post(
@@ -116,13 +115,11 @@ async def api_build(
         )
     except HTTPException:
         # Re-raise HTTPException unchanged
-        if output_pdf_path.exists():
-            output_pdf_path.unlink()
+        output_pdf_path.unlink(missing_ok=True)
         raise
     except Exception as e:
         # If we failed before returning the response, clean up now
-        if output_pdf_path.exists():
-            output_pdf_path.unlink()
+        output_pdf_path.unlink(missing_ok=True)
         raise HTTPException(status_code=500, detail=f"Builder Error: {e!s}") from e
 
 
