@@ -531,7 +531,9 @@ class TestPythonVenvConfig(unittest.TestCase):
 
     def test_venv_create_is_true(self):
         """The create flag must be True after reformatting."""
-        self.assertIs(self.venv_cfg["create"], True)
+        create = self.venv_cfg["create"]
+        self.assertIsInstance(create, bool)
+        self.assertTrue(create)
 
     def test_uv_create_args_is_list(self):
         """uv_create_args must be a list (multiline array reformatting preserves type)."""
