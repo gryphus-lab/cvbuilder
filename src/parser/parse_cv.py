@@ -37,13 +37,13 @@ def _is_header(line: str) -> bool:
 
 def final_sanitize(text: str) -> str:
     """
-    Normalize and correct common OCR artifacts and whitespace/punctuation issues in extracted text.
-
-    Performs observable normalizations including: targeted corrections of OCR variants like `Al`/`OpenAl` to `AI`/`OpenAI`, removal of stray symbols (e.g., bullets, ©, ¢), context-constrained replacement of `ii` with `ü` in OCR-specific cases, collapsing duplicated configured keywords, collapsing repeated whitespace, normalizing colon spacing to `": "`, and converting exact `Nativ` to `Native`. If `text` is falsy, returns an empty string.
-
+    Normalize common OCR artifacts, stray markers, punctuation, and whitespace in extracted text.
+    
+    Performs targeted corrections (e.g., normalize AI/OpenAI variants and `AI Efficiency`), removes bullet/marker characters, converts certain OCR `ii` artifacts to `ü` in context, collapses duplicated configured keywords, normalizes colon spacing to `": "`, collapses repeated whitespace, converts exact `Nativ` to `Native`, and trims the result. If `text` is falsy, returns an empty string.
+    
     Parameters:
-        text (str): Raw OCR-extracted text.
-
+        text (str): Raw OCR-extracted text to sanitize.
+    
     Returns:
         str: The sanitized text; returns an empty string if `text` is falsy.
     """
@@ -760,9 +760,18 @@ def _merge_bulleted_section_lines(
     merge_only_if_bullets: bool = False,
 ) -> list[str]:
     """
-    Merge multi-line bullet entries.
-    If merge_only_if_bullets is True, only merge if bullets are present in the lines.
-    Complexity reduced by flattening the state-check logic.
+    Merge wrapped and multi-line bullet entries into single cleaned lines.
+    
+    Parameters:
+        lines (list[str]): Raw section lines to merge; empty or whitespace-only lines are ignored.
+        is_skills_section (bool): When True, treat lines containing '&' (without ':') as category headings
+            and treat lines containing ':' as explicit items; affects whether a line starts a new merged item.
+        merge_only_if_bullets (bool): When True, return cleaned non-empty lines unchanged unless at least one
+            line begins with a bullet prefix (e.g., '•', '¢', '°'), in which case merging is performed.
+    
+    Returns:
+        list[str]: Merged, sanitized lines with bullet markers removed and continued lines concatenated into
+        their preceding item.
     """
     bullet_prefixes = ("•", "¢", "°")
     has_bullets = any(line.strip().startswith(bullet_prefixes) for line in lines)
@@ -1022,16 +1031,16 @@ def _handle_competencies_and_skills_section(
     lines: list[str], start_idx: int
 ) -> tuple[dict, int]:
     """
-    Map competencies and skills in the section to sanitized category→skill lists.
-
-    Parses the section starting after start_idx, identifying main categories and their sub-bullets.
-
+    Parse a competencies/skills section into sanitized category → skill lists.
+    
+    Collects the section lines after start_idx, merges wrapped bullets in skills mode, and builds a mapping of category names to lists of sanitized skill strings. Category headings are lines containing '&' (treated as a new category). Lines containing ':' are handled differently depending on the active category: when the active category is "General", a colon line is split into a left-hand category name and comma/semicolon-separated values which become that category's skills; when the active category is not "General", colon lines are appended verbatim (sanitized) as items under the current category. Regular lines are added as skills under the current category.
+    
     Parameters:
-        lines (list[str]): All OCR lines from the document.
+        lines (list[str]): All OCR-extracted lines from the document.
         start_idx (int): Index of the section header line; parsing begins at the following line.
-
+    
     Returns:
-        tuple[dict, int]: A tuple where the first element maps sanitized category names to lists of sanitized skill strings, and the second element is the index of the first line after the section.
+        tuple[dict, int]: A tuple whose first element is a dict mapping sanitized category names to lists of sanitized skill strings, and whose second element is the index of the first line after the parsed section.
     """
     content, next_idx = _parse_generic_section(lines, start_idx)
     content = _merge_bulleted_section_lines(content, is_skills_section=True)
