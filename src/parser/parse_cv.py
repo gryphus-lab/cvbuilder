@@ -1066,7 +1066,7 @@ def _handle_competencies_and_skills_section(
             skills_dict.setdefault(current_cat, []).append(sanitized_line)
             continue
 
-        elif ":" in stripped:
+        if ":" in stripped:
             cat_part, values_part = stripped.split(":", 1)
             target_key = final_sanitize(cat_part)
 
