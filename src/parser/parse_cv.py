@@ -62,6 +62,7 @@ def final_sanitize(text: str) -> str:
         text,
     )
     text = re.sub(r"(?i)\bAlEfficiency\b", "AI Efficiency", text)
+    text = re.sub(r"(?i)\bAI[- ]?Efficiency\b", "AI Efficiency", text)
     text = re.sub(r"OpenAl\b", "OpenAI", text)
     text = re.sub(r"[•©¢]", "", text)
 
@@ -780,7 +781,8 @@ def _merge_bulleted_section_lines(
         clean_text = stripped[len(prefix) :].strip() if prefix else stripped
 
         is_heading = is_skills_section and "&" in stripped and ":" not in stripped
-        is_new_item = prefix or is_heading
+        is_colon_item = is_skills_section and ":" in stripped
+        is_new_item = prefix or is_heading or is_colon_item
 
         if is_new_item or not merged:
             merged.append(clean_text)
@@ -1047,16 +1049,22 @@ def _handle_competencies_and_skills_section(
             skills_dict.setdefault(current_cat, [])
             continue
 
+        sanitized_line = final_sanitize(stripped)
+
+        if ":" in stripped and current_cat != "General":
+            skills_dict.setdefault(current_cat, []).append(sanitized_line)
+            continue
+
         if ":" in stripped:
             cat_part, values_part = stripped.split(":", 1)
-            target_key = f"{current_cat} - {final_sanitize(cat_part)}"
+            target_key = final_sanitize(cat_part)
 
             skills = [
                 final_sanitize(s) for s in re.split(r"[;,]", values_part) if s.strip()
             ]
             skills_dict.setdefault(target_key, []).extend(skills)
         else:
-            skills_dict.setdefault(current_cat, []).append(final_sanitize(stripped))
+            skills_dict.setdefault(current_cat, []).append(sanitized_line)
 
     return skills_dict, next_idx
 
