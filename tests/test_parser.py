@@ -88,6 +88,20 @@ def test_parse_experience():
     assert _ == 4  # Index of EDUCATION
 
 
+def test_parse_experience_splits_ai_efficiency_without_space():
+    lines = [
+        "PROFESSIONAL EXPERIENCE",
+        "Associate Director, UBS Business Solutions AG, Zürich (03/2024 — Present)",
+        "Migration Impact: Orchestrated the high-velocity architectural migration of 13M+ regulatory records with 100% data integrity, meeting strict FINMA/GeBÜV compliance mandates within a critical 10-week integration window. AIEfficiency: Championed a Generative AI (Azure OpenAI) governance framework to automate gap analysis, reducing manual effort by 30% and accelerating decision-making for technical steering committee.",
+        "EDUCATION",
+    ]
+    jobs, _ = _parse_experience(lines, 0)
+
+    assert len(jobs) == 1
+    assert any(ach.startswith("Migration Impact:") for ach in jobs[0]["achievements"])
+    assert any(ach.startswith("AI Efficiency:") for ach in jobs[0]["achievements"])
+
+
 ## --- Integration/Mock Tests ---
 
 
@@ -418,6 +432,12 @@ def test_final_sanitize_al_replacement_positive_cases():
     assert final_sanitize("Al Model training") == "AI Model training"
     assert final_sanitize("Al powered system") == "AI powered system"
     assert final_sanitize("Al based solution") == "AI based solution"
+
+
+def test_final_sanitize_ai_efficiency_variants():
+    assert final_sanitize("AIEfficiency") == "AI Efficiency"
+    assert final_sanitize("AI-Efficiency") == "AI Efficiency"
+    assert final_sanitize("AI Efficiency") == "AI Efficiency"
     assert final_sanitize("Al driven analytics") == "AI driven analytics"
     assert final_sanitize("Al generated content") == "AI generated content"
     assert final_sanitize("Al ML algorithm") == "AI ML algorithm"
@@ -1174,6 +1194,25 @@ def test_handle_competencies_and_skills_values_are_lists():
     result, _ = _handle_competencies_and_skills_section(lines, 0)
     for vals in result.values():
         assert isinstance(vals, list)
+
+
+def test_handle_competencies_and_skills_top_level_category_contains_sub_bullets():
+    lines = [
+        "COMPETENCIES AND SKILLS",
+        "Al & Workflow Automation",
+        "Generative Al: GitHub Copilot, Microsoft 365 Copilot.",
+        "Automation: Al-enhanced workflows with OCR integration (ABBYY FineReader, Azure Al).",
+        "EDUCATION",
+    ]
+    result, _ = _handle_competencies_and_skills_section(lines, 0)
+
+    assert "Al & Workflow Automation" in result
+    assert len(result["Al & Workflow Automation"]) == 2
+    assert any("Generative Al:" in item for item in result["Al & Workflow Automation"])
+    assert any("Automation:" in item for item in result["Al & Workflow Automation"])
+    assert all(
+        not key.startswith("Al & Workflow Automation -") for key in result
+    )
 
 
 ## --- Unit Tests for _handle_generic_fallback_section ---
