@@ -61,8 +61,7 @@ def final_sanitize(text: str) -> str:
         "AI ",
         text,
     )
-    text = re.sub(r"(?i)\bAlEfficiency\b", "AI Efficiency", text)
-    text = re.sub(r"(?i)\bAI[- ]?Efficiency\b", "AI Efficiency", text)
+    text = re.sub(r"(?i)\b(?:Al|AI[- ]?)Efficiency\b", "AI Efficiency", text)
     text = re.sub(r"OpenAl\b", "OpenAI", text)
     text = re.sub(r"[•©¢]", "", text)
 
@@ -1047,6 +1046,7 @@ def _handle_competencies_and_skills_section(
 
     skills_dict = {}
     current_cat = "General"
+    has_category_header = False
 
     for line in content:
         stripped = line.strip()
@@ -1055,16 +1055,18 @@ def _handle_competencies_and_skills_section(
 
         if ":" not in stripped and "&" in stripped:
             current_cat = final_sanitize(stripped)
+            has_category_header = True
             skills_dict.setdefault(current_cat, [])
             continue
 
         sanitized_line = final_sanitize(stripped)
 
-        if ":" in stripped and current_cat != "General":
+        # Sub-bullets under a top-level category are stored verbatim (not split on colon)
+        if ":" in stripped and has_category_header:
             skills_dict.setdefault(current_cat, []).append(sanitized_line)
             continue
 
-        if ":" in stripped:
+        elif ":" in stripped:
             cat_part, values_part = stripped.split(":", 1)
             target_key = final_sanitize(cat_part)
 

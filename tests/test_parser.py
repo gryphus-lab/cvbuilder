@@ -1207,10 +1207,11 @@ def test_handle_competencies_and_skills_top_level_category_contains_sub_bullets(
     result, _ = _handle_competencies_and_skills_section(lines, 0)
 
     assert "Al & Workflow Automation" in result
+    assert len(result["Al & Workflow Automation"]) == 2
     assert any("Generative Al:" in item for item in result["Al & Workflow Automation"])
     assert any("Automation:" in item for item in result["Al & Workflow Automation"])
     assert all(
-        not key.startswith("Al & Workflow Automation -") for key in result.keys()
+        not key.startswith("Al & Workflow Automation -") for key in result
     )
 
 
