@@ -505,3 +505,32 @@ def test_build_logs_warning_for_directory_instead_of_file(
             builder.build(minimal_cv_payload, output_pdf, photo_path=dir_as_photo)
 
     assert "Photo path does not exist or is not a file" in caplog.text
+
+
+## --- CSS Formatting Regression Tests ---
+
+
+def test_render_html_header_has_no_border_bottom(builder, sample_cv_data):
+    """Regression: the .header CSS block must not contain a border-bottom rule (removed in PR)."""
+    html = builder._render_html(sample_cv_data)
+    assert "border-bottom: 3px solid #000000" not in html
+
+
+def test_render_html_section_heading_has_no_border_bottom(builder, sample_cv_data):
+    """Regression: h2.section CSS must not include a border-bottom rule (removed in PR)."""
+    html = builder._render_html(sample_cv_data)
+    assert "border-bottom: 2px solid #000000" not in html
+
+
+def test_render_html_footer_has_no_border_top(builder, sample_cv_data):
+    """Regression: the .footer CSS block must not contain a border-top rule (removed in PR)."""
+    html = builder._render_html(sample_cv_data)
+    assert "border-top: 1px solid #ddd" not in html
+
+
+def test_render_html_no_section_borders_with_minimal_cv(builder, minimal_cv_payload):
+    """Regression: none of the removed border rules appear in the HTML even for a minimal CV."""
+    html = builder._render_html(minimal_cv_payload)
+    assert "border-bottom: 3px solid #000000" not in html
+    assert "border-bottom: 2px solid #000000" not in html
+    assert "border-top: 1px solid #ddd" not in html
