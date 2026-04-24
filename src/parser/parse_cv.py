@@ -37,13 +37,13 @@ def _is_header(line: str) -> bool:
 
 def final_sanitize(text: str) -> str:
     """
-    Normalize common OCR artifacts, stray markers, punctuation, and whitespace in extracted text.
-
-    Performs targeted corrections (e.g., normalize AI/OpenAI variants and `AI Efficiency`), removes bullet/marker characters, converts certain OCR `ii` artifacts to `ü` in context, collapses duplicated configured keywords, normalizes colon spacing to `": "`, collapses repeated whitespace, converts exact `Nativ` to `Native`, and trims the result. If `text` is falsy, returns an empty string.
-
+    Clean and normalize OCR-extracted text by fixing common artifacts, stray markers, punctuation, and whitespace.
+    
+    Performs targeted normalizations such as correcting AI/OpenAI OCR variants, converting specific OCR `ii` artifacts to `ü` in context, removing common bullet/marker characters, collapsing duplicated configured keywords, normalizing colon spacing and general whitespace, converting the exact token `Nativ` to `Native`, and trimming the result. If `text` is falsy, returns an empty string.
+    
     Parameters:
         text (str): Raw OCR-extracted text to sanitize.
-
+    
     Returns:
         str: The sanitized text; returns an empty string if `text` is falsy.
     """
