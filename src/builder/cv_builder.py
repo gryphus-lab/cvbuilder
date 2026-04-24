@@ -96,7 +96,6 @@ class CVBuilder:
             justify-content: space-between;
             align-items: flex-start;
             margin-bottom: 20px;
-            border-bottom: 3px solid #000000;
             padding-bottom: 12px;
         }
         .header-left h1 {
@@ -127,7 +126,6 @@ class CVBuilder:
             font-family: "Arial", sans-serif;
             font-size: 11pt;
             color: #000000;
-            border-bottom: 2px solid #000000;
             padding-bottom: 4px;
             margin: 22px 0 10px 0;
         }
@@ -164,7 +162,6 @@ class CVBuilder:
             font-size: 9pt;
             color: #777;
             margin-top: 30px;
-            border-top: 1px solid #ddd;
             padding-top: 8px;
         }
     </style>

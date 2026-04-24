@@ -1,4 +1,5 @@
 import logging
+import re
 
 import pytest
 from unittest.mock import patch, MagicMock
@@ -505,3 +506,92 @@ def test_build_logs_warning_for_directory_instead_of_file(
             builder.build(minimal_cv_payload, output_pdf, photo_path=dir_as_photo)
 
     assert "Photo path does not exist or is not a file" in caplog.text
+
+
+## --- CSS Formatting Regression Tests ---
+
+
+@pytest.mark.parametrize(
+    "fixture_name,css_selector,border_property,border_width,border_color,description",
+    [
+        (
+            "sample_cv_data",
+            r"\.header",
+            "border-bottom",
+            "3px",
+            r"(#000000|#000|black)",
+            "the .header CSS block must not contain a border-bottom rule (removed in PR)",
+        ),
+        (
+            "sample_cv_data",
+            r"h2\.section",
+            "border-bottom",
+            "2px",
+            r"(#000000|#000|black)",
+            "h2.section CSS must not include a border-bottom rule (removed in PR)",
+        ),
+        (
+            "sample_cv_data",
+            r"\.footer",
+            "border-top",
+            "1px",
+            r"(#ddd|#dddddd|silver|lightgray)",
+            "the .footer CSS block must not contain a border-top rule (removed in PR)",
+        ),
+        (
+            "minimal_cv_payload",
+            r"\.header",
+            "border-bottom",
+            "3px",
+            r"(#000000|#000|black)",
+            "none of the removed border rules appear in the HTML even for a minimal CV (header)",
+        ),
+        (
+            "minimal_cv_payload",
+            r"h2\.section",
+            "border-bottom",
+            "2px",
+            r"(#000000|#000|black)",
+            "none of the removed border rules appear in the HTML even for a minimal CV (section)",
+        ),
+        (
+            "minimal_cv_payload",
+            r"\.footer",
+            "border-top",
+            "1px",
+            r"(#ddd|#dddddd|silver|lightgray)",
+            "none of the removed border rules appear in the HTML even for a minimal CV (footer)",
+        ),
+    ],
+)
+def test_render_html_no_border_rules(
+    builder,
+    sample_cv_data,
+    minimal_cv_payload,
+    fixture_name,
+    css_selector,
+    border_property,
+    border_width,
+    border_color,
+    description,
+    request,
+):
+    """Regression: CSS blocks must not contain removed border rules.
+
+    This parameterized test verifies that the .header, h2.section, and .footer
+    CSS selectors do not contain border-bottom or border-top rules that were
+    removed in a previous PR. Tests are run against both sample_cv_data and
+    minimal_cv_payload fixtures to ensure comprehensive coverage.
+    """
+    # Dynamically get the fixture by name
+    cv_data = request.getfixturevalue(fixture_name)
+    html = builder._render_html(cv_data)
+
+    # Build regex pattern to match the CSS rule with flexible whitespace and color notations
+    # Pattern matches: selector { ... border-property: width solid color ... }
+    pattern = (
+        rf"{css_selector}\s*\{{[^}}]*"
+        rf"{border_property}\s*:\s*{border_width}\s*solid\s*{border_color}\b"
+    )
+
+    assert not re.search(pattern, html, re.IGNORECASE), f"Regression: {description}"

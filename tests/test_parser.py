@@ -1210,9 +1210,7 @@ def test_handle_competencies_and_skills_top_level_category_contains_sub_bullets(
     assert len(result["Al & Workflow Automation"]) == 2
     assert any("Generative Al:" in item for item in result["Al & Workflow Automation"])
     assert any("Automation:" in item for item in result["Al & Workflow Automation"])
-    assert all(
-        not key.startswith("Al & Workflow Automation -") for key in result
-    )
+    assert all(not key.startswith("Al & Workflow Automation -") for key in result)
 
 
 ## --- Unit Tests for _handle_generic_fallback_section ---
