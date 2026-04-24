@@ -594,6 +594,4 @@ def test_render_html_no_border_rules(
         rf"{border_property}\s*:\s*{border_width}\s*solid\s*{border_color}\b"
     )
 
-    assert not re.search(
-        pattern, html, re.IGNORECASE
-    ), f"Regression: {description}"
+    assert not re.search(pattern, html, re.IGNORECASE), f"Regression: {description}"
