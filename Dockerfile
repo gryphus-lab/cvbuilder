@@ -6,7 +6,9 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PYTHONPATH=/app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN echo "deb [check-valid-until=no] https://snapshot.debian.org/archive/debian/20250101T000000Z bookworm main" > /etc/apt/sources.list && \
+    echo "deb [check-valid-until=no] https://snapshot.debian.org/archive/debian-security/20250101T000000Z bookworm-security main" >> /etc/apt/sources.list && \
+    apt-get update && apt-get install -y --no-install-recommends \
     curl \
     libcairo2 \
     libgdk-pixbuf-2.0-0 \
