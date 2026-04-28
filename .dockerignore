@@ -3,6 +3,7 @@ __pycache__
 .idea
 .vscode
 results/
+uploads/
 *.pdf
 *.pyc
 .git
@@ -13,3 +14,13 @@ results/
 *.p12
 config.local.json
 config.*.local.json
+.pytest_cache
+.ruff_cache
+.sonarlint
+tests/
+.python-version
+mise.toml
+.github/
+sonar-project.properties
+.githooks
+README.md
