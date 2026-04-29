@@ -58,6 +58,6 @@ USER appuser
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD python -m http.client localhost 8080 /healthz 2>/dev/null || exit 1
+    CMD python -c "import http.client; conn = http.client.HTTPConnection('localhost', 8080, timeout=2); conn.request('GET', '/healthz'); r = conn.getresponse(); exit(0 if r.status == 200 else 1)" || exit 1
 
 CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080"]
