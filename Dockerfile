@@ -1,16 +1,28 @@
+# Build stage: install Python dependencies
+FROM python:3.14-slim AS builder
+
+ENV PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /tmp
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --user -r requirements.txt
+
+# Runtime stage
 FROM python:3.14-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PYTHONPATH=/app
 
-# Create non-root user BEFORE apt-get (better layer caching)
-RUN adduser --disabled-password --gecos "" --no-create-home appuser
-
-# Install dependencies with clean apt state
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Create non-root user
+RUN adduser --disabled-password --gecos "" --no-create-home appuser && \
+    mkdir -p /home/appuser/.local && \
+    chown -R appuser:appuser /home/appuser/.local && \
+    chmod -R 755 /home/appuser/.local && \
+# Install system dependencies (minimal, runtime-only)
+    apt-get update && apt-get install -y --no-install-recommends \
     libcairo2 \
     libgdk-pixbuf-2.0-0 \
     libgdk-pixbuf-xlib-2.0-0 \
@@ -25,17 +37,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Copy and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt && \
-    mkdir -p /app/results /app/uploads && \
-    chown -R appuser:appuser /app
+# Copy pre-built Python packages from builder
+COPY --from=builder --chown=appuser:appuser /root/.local /home/appuser/.local
 
 # Copy application code
 COPY --chown=appuser:appuser ./src src
 COPY --chown=appuser:appuser ./main.py main.py
 COPY --chown=appuser:appuser ./api.py api.py
 COPY --chown=appuser:appuser ./config.json /app/config.json
+
+# Create runtime directories
+RUN mkdir -p /app/results /app/uploads && \
+    chown -R appuser:appuser /app
+
+# Set PATH to use user-installed packages
+ENV PATH=/home/appuser/.local/bin:$PATH
 
 USER appuser
 

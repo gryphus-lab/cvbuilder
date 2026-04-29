@@ -3,7 +3,6 @@ import logging
 from pathlib import Path
 from typing import Dict, Any
 from jinja2 import Environment, BaseLoader, select_autoescape
-from weasyprint import HTML
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +53,7 @@ class CVBuilder:
 
         html_content = self._render_html(cv_data, photo_url)
 
+        from weasyprint import HTML
         HTML(string=html_content, base_url=os.getcwd()).write_pdf(str(output_pdf))
 
         print(f'✅ CV PDF successfully generated at: "{output_pdf.resolve()}"')
