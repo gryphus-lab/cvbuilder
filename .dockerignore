@@ -1,12 +1,14 @@
-__pycache__
-.venv
-.idea
-.vscode
-results/
-uploads/
-*.pdf
-*.pyc
-.git
+# Prerequisites
+__pycache__/
+*.py[cod]
+*$py.class
+.python-version
+
+# Virtual Environments
+.venv/
+uv.cache/
+
+# Local Configs & Secrets (Crucial)
 .env
 .env.*
 *.pem
@@ -14,13 +16,24 @@ uploads/
 *.p12
 config.local.json
 config.*.local.json
-.pytest_cache
-.ruff_cache
-.sonarlint
-tests/
-.python-version
-mise.toml
+
+# App Data/Output
+results/
+uploads/
+*.pdf
+
+# Tooling & IDEs
+.idea/
+.vscode/
+.git/
 .github/
+.pytest_cache/
+.ruff_cache/
+.sonarlint/
+.githooks/
+mise.toml
 sonar-project.properties
-.githooks
+
+# Misc
 README.md
+**/.DS_Store
