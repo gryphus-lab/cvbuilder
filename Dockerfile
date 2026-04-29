@@ -1,21 +1,15 @@
 # 1. Build Stage
 FROM python:3.14-slim AS builder
-
-# Install uv from official binaries
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Set working directory and configuration
 WORKDIR /app
-ENV UV_COMPILE_BYTECODE=1 \
-    UV_LINK_MODE=copy
+ENV UV_PROJECT_ENVIRONMENT=/app/.venv
 
-# Copy lockfiles first to leverage Docker layer caching
-COPY uv.lock pyproject.toml ./
-
-# Install dependencies without installing the project itself yet
-# --frozen ensures uv uses the lockfile without attempting to update it
+# Copy lockfiles
+COPY ./uv.lock ./pyproject.toml ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-install-project --no-dev --no-build
+    uv sync --frozen --no-dev --no-install-project --no-build
+
 
 # 2. Runtime Stage
 FROM python:3.14-slim AS runtime
