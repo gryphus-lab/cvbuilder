@@ -15,7 +15,7 @@ COPY uv.lock pyproject.toml ./
 # Install dependencies without installing the project itself yet
 # --frozen ensures uv uses the lockfile without attempting to update it
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-install-project --no-dev
+    uv sync --frozen --no-install-project --no-dev --no-build
 
 # 2. Runtime Stage
 FROM python:3.14-slim AS runtime
@@ -26,10 +26,11 @@ ENV PYTHONUNBUFFERED=1 \
     PATH="/app/.venv/bin:$PATH"
 
 # Create a dedicated non-root user
-RUN adduser --disabled-password --gecos "" --home /home/appuser appuser
-
-# Install system dependencies (runtime-only)
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN adduser --disabled-password --gecos "" --home /home/appuser appuser && \
+    chown -R appuser:appuser /home/appuser && \
+    chmod -R 750 /home/appuser && \
+    # Install system dependencies (runtime-only)
+    apt-get update && apt-get install -y --no-install-recommends \
     libcairo2 \
     libgdk-pixbuf-2.0-0 \
     libpango-1.0-0 \
