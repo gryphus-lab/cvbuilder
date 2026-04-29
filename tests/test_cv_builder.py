@@ -461,9 +461,8 @@ def test_build_logs_warning_for_nonexistent_photo(
     invalid_photo = tmp_path / "non_existent_image.jpg"
 
     # Ensure WeasyPrint doesn't actually try to run
-    with patch("weasyprint.HTML"):
-        with caplog.at_level(logging.WARNING):
-            builder.build(minimal_cv_payload, output_pdf, photo_path=invalid_photo)
+    with patch("weasyprint.HTML"), caplog.at_level(logging.WARNING):
+        builder.build(minimal_cv_payload, output_pdf, photo_path=invalid_photo)
 
     assert f"Photo path does not exist or is not a file: {invalid_photo}" in caplog.text
     # Verify photo_url was reset to empty string (implied by no img tag in render if we were to check)
@@ -485,9 +484,8 @@ def test_build_logs_error_on_path_resolution_failure(
             mock_photo_instance if x == photo_path else Path(x)
         )
 
-        with patch("weasyprint.HTML"):
-            with caplog.at_level(logging.ERROR):
-                builder.build(minimal_cv_payload, output_pdf, photo_path=photo_path)
+        with patch("weasyprint.HTML"), caplog.at_level(logging.ERROR):
+            builder.build(minimal_cv_payload, output_pdf, photo_path=photo_path)
     assert (
         "Failed to resolve photo path 'some_path.jpg': Permission denied" in caplog.text
     )
@@ -501,9 +499,8 @@ def test_build_logs_warning_for_directory_instead_of_file(
     dir_as_photo = tmp_path / "images_folder"
     dir_as_photo.mkdir()
 
-    with patch("weasyprint.HTML"):
-        with caplog.at_level(logging.WARNING):
-            builder.build(minimal_cv_payload, output_pdf, photo_path=dir_as_photo)
+    with patch("weasyprint.HTML"), caplog.at_level(logging.WARNING):
+        builder.build(minimal_cv_payload, output_pdf, photo_path=dir_as_photo)
 
     assert "Photo path does not exist or is not a file" in caplog.text
 
