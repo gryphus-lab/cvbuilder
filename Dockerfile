@@ -6,12 +6,11 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PYTHONPATH=/app
 
-ARG DEBIAN_SNAPSHOT_DATE=20250101T000000Z
+# Create non-root user BEFORE apt-get (better layer caching)
+RUN adduser --disabled-password --gecos "" --no-create-home appuser
 
-RUN echo "deb [check-valid-until=no] https://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT_DATE} bookworm main" > /etc/apt/sources.list && \
-    echo "deb [check-valid-until=no] https://snapshot.debian.org/archive/debian-security/${DEBIAN_SNAPSHOT_DATE} bookworm-security main" >> /etc/apt/sources.list && \
-    apt-get update && apt-get install -y --no-install-recommends \
-    curl \
+# Install dependencies with clean apt state
+RUN apt-get update && apt-get install -y --no-install-recommends \
     libcairo2 \
     libgdk-pixbuf-2.0-0 \
     libgdk-pixbuf-xlib-2.0-0 \
@@ -21,16 +20,18 @@ RUN echo "deb [check-valid-until=no] https://snapshot.debian.org/archive/debian/
     tesseract-ocr \
     tesseract-ocr-deu \
     tesseract-ocr-eng && \
-    rm -rf /var/lib/apt/lists/* && \
-    adduser --disabled-password --gecos "" appuser
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
 WORKDIR /app
 
+# Copy and install Python dependencies
 COPY requirements.txt .
-RUN pip install --only-binary :all: -r requirements.txt && \
+RUN pip install --no-cache-dir -r requirements.txt && \
     mkdir -p /app/results /app/uploads && \
     chown -R appuser:appuser /app
 
+# Copy application code
 COPY --chown=appuser:appuser ./src src
 COPY --chown=appuser:appuser ./main.py main.py
 COPY --chown=appuser:appuser ./api.py api.py
@@ -41,6 +42,6 @@ USER appuser
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl --fail http://localhost:8080/healthz || exit 1
+    CMD python -m http.client localhost 8080 /healthz 2>/dev/null || exit 1
 
 CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080"]
