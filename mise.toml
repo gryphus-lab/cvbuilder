@@ -55,8 +55,18 @@ run = "ruff format . && ruff check --fix ."
 depends = ["bootstrap"]
 
 [tasks.test]
-description = "Run tests with pytest"
-run = "pytest tests"
+description = "Run all tests"
+run = "pytest"
+depends = ["bootstrap"]
+
+[tasks."test:unit"]
+description = "Run only unit tests (fast)"
+run = "pytest -m 'not integration' --cov=src --cov-report=xml"
+depends = ["bootstrap"]
+
+[tasks."test:integration"]
+description = "Run integration tests (OCR + API)"
+run = "pytest -m 'integration' --cov=src --cov-report=xml --cov-append"
 depends = ["bootstrap"]
 
 [tasks.coverage]

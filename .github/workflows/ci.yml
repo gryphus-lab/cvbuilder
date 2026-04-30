@@ -28,6 +28,20 @@ jobs:
         with:
           install: true
           cache: true
+      - name: Install system dependencies (Tesseract + WeasyPrint)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            tesseract-ocr \
+            tesseract-ocr-eng \
+            tesseract-ocr-deu \
+            poppler-utils \
+            libcairo2 \
+            libpango-1.0-0 \
+            libpangocairo-1.0-0 \
+            libgdk-pixbuf2.0-0 \
+            libffi-dev \
+            gcc
       - name: Check setup
         run: |
           mise --version
@@ -38,10 +52,37 @@ jobs:
       - name: Show project info
         run: |
           mise run info
-      - name: Run pytest tests with coverage
-        run: |
-          mise run coverage
+      - name: Run Unit Tests with coverage
+        run: mise run test:unit
+
+      # === INTEGRATION TESTS ===
+      - name: Run Integration Tests
+        run: mise run test:integration
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v8
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  docker-build:
+      runs-on: ubuntu-latest
+      needs: build
+      steps:
+        - uses: actions/checkout@v6
+          with:
+            fetch-depth: 0
+
+        - name: Build Docker image
+          run: docker build -t cvbuilder:latest .
+
+        - name: Test Docker container (health check)
+          run: |
+            cid=$(docker run -d -p 8080:8080 cvbuilder:latest)
+            trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
+            for i in {1..30}; do
+              if curl -fsS http://localhost:8080/healthz >/dev/null; then
+                exit 0
+              fi
+              sleep 1
+            done
+            echo "Health check did not pass within timeout"
+            exit 1

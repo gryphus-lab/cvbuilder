@@ -178,9 +178,12 @@ class TestWorkflowRawContent(unittest.TestCase):
         """
         Ensure the workflow invokes pytest.
 
-        Asserts that the workflow's raw text contains the substring "pytest".
+        Asserts that the workflow's raw text contains at least one concrete test command.
         """
-        self.assertIn("pytest", self.text)
+        self.assertTrue(
+            "mise run test:unit" in self.text
+            or "mise run test:integration" in self.text
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -390,12 +393,12 @@ class TestWorkflowYAMLStructure(unittest.TestCase):
 
     def test_run_pytest_step_command(self):
         """
-        Assert that the "Run pytest tests with coverage" job step invokes coverage using mise.
+        Assert that the "Run Unit Tests with coverage" job step invokes coverage using mise.
 
-        Checks the step named "Run pytest tests with coverage" and asserts its `run` command contains "mise run coverage".
+        Checks the step named "Run Unit Tests with coverage" and asserts its `run` command contains "mise run test:unit".
         """
-        step = self._get_step_by_name("Run pytest tests with coverage")
-        self.assertIn("mise run coverage", step["run"])
+        step = self._get_step_by_name("Run Unit Tests with coverage")
+        self.assertIn("mise run test:unit", step["run"])
 
     def test_sonarqube_step_uses_action(self):
         """

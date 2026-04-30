@@ -1,39 +1,62 @@
-FROM python:3.14-slim
+# 1. Build Stage
+FROM python:3.14-slim AS builder
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    gcc \
+WORKDIR /app
+ENV UV_PROJECT_ENVIRONMENT=/app/.venv
+
+# Copy lockfiles
+COPY ./uv.lock ./pyproject.toml ./
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-install-project --no-build
+
+
+# 2. Runtime Stage
+FROM python:3.14-slim AS runtime
+
+# Set security and performance environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH="/app/.venv/bin:$PATH"
+
+# Create a dedicated non-root user
+RUN adduser --disabled-password --gecos "" --home /home/appuser appuser && \
+    chown -R appuser:appuser /home/appuser && \
+    chmod -R 750 /home/appuser && \
+    # Install system dependencies (runtime-only)
+    apt-get update && apt-get install -y --no-install-recommends \
     libcairo2 \
-    libffi-dev \
     libgdk-pixbuf-2.0-0 \
-    libgdk-pixbuf-xlib-2.0-0 \
     libpango-1.0-0 \
     libpangocairo-1.0-0 \
     poppler-utils \
     tesseract-ocr \
     tesseract-ocr-deu \
-    tesseract-ocr-eng \
-    && rm -rf /var/lib/apt/lists/* \
-    && adduser --disabled-password --gecos "" appuser
+    tesseract-ocr-eng && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy the virtual environment from the builder
+COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
 
-COPY ./src src
-COPY ./main.py main.py
-COPY ./api.py api.py
-COPY ./pyproject.toml pyproject.toml
-COPY ./config.json /app/config.json
+# Copy application code with restrictive permissions
+COPY --chown=appuser:appuser ./src ./src
+COPY --chown=appuser:appuser ./main.py ./api.py ./config.json ./
 
-RUN mkdir -p /app/results && chown -R appuser:appuser /app
+# Create runtime directories with restrictive permissions (750)
+RUN mkdir -p /app/results /app/uploads && \
+    chown -R appuser:appuser /app && \
+    chmod -R 750 /app
 
 USER appuser
 
+# Healthcheck using Python's internal library to avoid external curl/wget dependencies
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD python3 -c "import http.client; c=http.client.HTTPConnection('localhost', 8080); c.request('GET', '/healthz'); exit(0 if c.getresponse().status==200 else 1)"
+
 EXPOSE 8080
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl --fail http://localhost:8080/healthz || exit 1
-
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080"]
+# Execute using the absolute path of the pinned uvicorn binary
+CMD ["/app/.venv/bin/uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080"]

@@ -132,7 +132,7 @@ def test_render_html_escapes_user_markup(builder, sample_cv_data):
 ## --- Integration Tests (Mocking WeasyPrint) ---
 
 
-@patch("src.builder.cv_builder.HTML")
+@patch("weasyprint.HTML")
 def test_build_creates_directory_and_calls_weasyprint(
     mock_html_class, builder, sample_cv_data, tmp_path
 ):
@@ -169,7 +169,7 @@ def test_photo_path_resolution(builder, sample_cv_data, tmp_path, monkeypatch):
         patch.object(
             CVBuilder, "_render_html", return_value="<html></html>"
         ) as mock_render,
-        patch("src.builder.cv_builder.HTML"),
+        patch("weasyprint.HTML"),
     ):  # Avoid actual PDF generation
         builder.build(sample_cv_data, tmp_path / "out.pdf", photo_path="me.jpg")
 
@@ -272,7 +272,7 @@ def test_render_html_photo_empty_string_omits_img(builder, sample_cv_data):
 ## --- Additional Integration Tests ---
 
 
-@patch("src.builder.cv_builder.HTML")
+@patch("weasyprint.HTML")
 def test_build_without_photo_passes_empty_photo_url(
     mock_html_class, builder, sample_cv_data, tmp_path
 ):
@@ -287,7 +287,7 @@ def test_build_without_photo_passes_empty_photo_url(
     assert 'class="photo-img"' not in kwargs["string"]
 
 
-@patch("src.builder.cv_builder.HTML")
+@patch("weasyprint.HTML")
 def test_build_with_existing_output_directory_does_not_raise(
     mock_html_class, builder, sample_cv_data, tmp_path
 ):
@@ -303,7 +303,7 @@ def test_build_with_existing_output_directory_does_not_raise(
     assert mock_html_instance.write_pdf.call_count == 2
 
 
-@patch("src.builder.cv_builder.HTML")
+@patch("weasyprint.HTML")
 def test_build_passes_base_url_to_weasyprint(
     mock_html_class, builder, sample_cv_data, tmp_path
 ):
@@ -318,7 +318,7 @@ def test_build_passes_base_url_to_weasyprint(
     assert kwargs["base_url"] == str(Path.cwd())
 
 
-@patch("src.builder.cv_builder.HTML")
+@patch("weasyprint.HTML")
 def test_build_output_path_accepts_string(
     mock_html_class, builder, sample_cv_data, tmp_path
 ):
@@ -407,7 +407,7 @@ def test_render_html_photo_none_omits_img(builder, sample_cv_data):
     assert 'class="photo-img"' not in html
 
 
-@patch("src.builder.cv_builder.HTML")
+@patch("weasyprint.HTML")
 def test_build_success_prints_output_path(
     mock_html_class, builder, sample_cv_data, tmp_path, capsys
 ):
@@ -421,7 +421,7 @@ def test_build_success_prints_output_path(
     assert str(output_file.resolve()) in captured.out
 
 
-@patch("src.builder.cv_builder.HTML")
+@patch("weasyprint.HTML")
 def test_build_photo_path_as_string(mock_html_class, builder, sample_cv_data, tmp_path):
     """photo_path supplied as a plain string must be resolved to a file:// URL."""
     fake_photo = tmp_path / "headshot.png"
@@ -438,7 +438,7 @@ def test_build_photo_path_as_string(mock_html_class, builder, sample_cv_data, tm
         assert called_photo_url == fake_photo.resolve().as_uri()
 
 
-@patch("src.builder.cv_builder.HTML")
+@patch("weasyprint.HTML")
 def test_build_write_pdf_called_with_string_version_of_path_object(
     mock_html_class, builder, sample_cv_data, tmp_path
 ):
@@ -461,7 +461,7 @@ def test_build_logs_warning_for_nonexistent_photo(
     invalid_photo = tmp_path / "non_existent_image.jpg"
 
     # Ensure WeasyPrint doesn't actually try to run
-    with patch("src.builder.cv_builder.HTML"):
+    with patch("weasyprint.HTML"):
         with caplog.at_level(logging.WARNING):
             builder.build(minimal_cv_payload, output_pdf, photo_path=invalid_photo)
 
@@ -485,7 +485,7 @@ def test_build_logs_error_on_path_resolution_failure(
             mock_photo_instance if x == photo_path else Path(x)
         )
 
-        with patch("src.builder.cv_builder.HTML"):
+        with patch("weasyprint.HTML"):
             with caplog.at_level(logging.ERROR):
                 builder.build(minimal_cv_payload, output_pdf, photo_path=photo_path)
     assert (
@@ -501,7 +501,7 @@ def test_build_logs_warning_for_directory_instead_of_file(
     dir_as_photo = tmp_path / "images_folder"
     dir_as_photo.mkdir()
 
-    with patch("src.builder.cv_builder.HTML"):
+    with patch("weasyprint.HTML"):
         with caplog.at_level(logging.WARNING):
             builder.build(minimal_cv_payload, output_pdf, photo_path=dir_as_photo)
 
