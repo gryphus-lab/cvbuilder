@@ -178,9 +178,12 @@ class TestWorkflowRawContent(unittest.TestCase):
         """
         Ensure the workflow invokes pytest.
 
-        Asserts that the workflow's raw text contains the substring "Tests".
+        Asserts that the workflow's raw text contains at least one concrete test command.
         """
-        self.assertIn("Tests", self.text)
+        self.assertTrue(
+            "mise run test:unit" in self.text
+            or "mise run test:integration" in self.text
+        )
 
 
 # ---------------------------------------------------------------------------

@@ -76,7 +76,13 @@ jobs:
 
         - name: Test Docker container (health check)
           run: |
-            docker run --rm -p 8080:8080 cvbuilder:latest &
-            sleep 5
-            curl -f http://localhost:8080/healthz || exit 1
-            kill %1
+            cid=$(docker run -d -p 8080:8080 cvbuilder:latest)
+            trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
+            for i in {1..30}; do
+              if curl -fsS http://localhost:8080/healthz >/dev/null; then
+                exit 0
+              fi
+              sleep 1
+            done
+            echo "Health check did not pass within timeout"
+            exit 1
