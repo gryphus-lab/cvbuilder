@@ -34,18 +34,21 @@ def test_parse_endpoint(test_client: TestClient, test_pdf: Path, clean_results_d
 def test_build_endpoint(test_client: TestClient, clean_results_dir):
     """Test the /build endpoint (requires cv_data.json to exist)."""
     # First ensure we have a cv_data.json
-    cv_data_path = Path("cv_data.json")
+    cv_data_path = Path("results/cv_data.json")
     if not cv_data_path.exists():
         pytest.skip("cv_data.json not found - run parser first")
 
-    response = test_client.post("/build")
+    import json
+
+    with open(cv_data_path) as f:
+        cv_data = json.load(f)
+
+    response = test_client.post("/build", json={"cv_data": cv_data})
 
     assert response.status_code == 200
-    data = response.json()
-
-    assert "message" in data
-    assert "output_path" in data
-    assert Path(data["output_path"]).exists()
+    assert response.headers.get(
+        "content-type"
+    ) == "application/pdf" or response.content.startswith(b"%PDF")
 
 
 @pytest.mark.skip(
