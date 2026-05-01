@@ -7,15 +7,15 @@ requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.136.1",
     "httpx>=0.28.1,<1.0",
-    "jinja2>=3.1.0,<4.0",
-    "pdf2image>=1.16.0,<2.0",
-    "pytesseract>=0.3.10,<1.0",
+    "jinja2>=3.1.6,<4.0",
+    "pdf2image>=1.17.0,<2.0",
+    "pytesseract>=0.3.13,<1.0",
     "pytest>=9.0.3",
     "pytest-cov>=6.2.1",
     "python-multipart>=0.0.27",
     "pyyaml>=6.0.3,<7.0",
     "uvicorn[standard]>=0.46.0",
-    "weasyprint>=68.0",
+    "weasyprint>=68.1",
 ]
 optional-dependencies = { test = ["pytest>=9.0.3", "pytest-cov>=7.1.0"] }
 
