@@ -275,3 +275,132 @@ def test_api_build_http_exception_reraise():
 
         assert response.status_code == 403
         assert response.json()["detail"] == "Forbidden"
+
+
+# --- Tests for new pdf2image exception handlers added in this PR ---
+
+def test_api_parse_pdf_page_count_error_returns_400():
+    """PDFPageCountError from run_parse must return 400 with 'Invalid PDF file:' detail."""
+    from pdf2image.exceptions import PDFPageCountError
+
+    with patch("main.run_parse", side_effect=PDFPageCountError("no pages found")):
+        files = {"file": ("test.pdf", b"%PDF-1.4", "application/pdf")}
+        response = client.post("/parse", files=files)
+
+    assert response.status_code == 400
+    assert response.json()["detail"].startswith("Invalid PDF file:")
+    assert "no pages found" in response.json()["detail"]
+
+
+def test_api_parse_pdf_syntax_error_returns_400():
+    """PDFSyntaxError from run_parse must return 400 with 'Invalid PDF file:' detail."""
+    from pdf2image.exceptions import PDFSyntaxError
+
+    with patch("main.run_parse", side_effect=PDFSyntaxError("bad syntax")):
+        files = {"file": ("test.pdf", b"%PDF-1.4", "application/pdf")}
+        response = client.post("/parse", files=files)
+
+    assert response.status_code == 400
+    assert response.json()["detail"].startswith("Invalid PDF file:")
+    assert "bad syntax" in response.json()["detail"]
+
+
+def test_api_parse_poppler_not_installed_returns_500():
+    """PopplerNotInstalledError from run_parse must return 500 with 'Server configuration error:' detail."""
+    from pdf2image.exceptions import PopplerNotInstalledError
+
+    with patch("main.run_parse", side_effect=PopplerNotInstalledError("poppler missing")):
+        files = {"file": ("test.pdf", b"%PDF-1.4", "application/pdf")}
+        response = client.post("/parse", files=files)
+
+    assert response.status_code == 500
+    assert response.json()["detail"].startswith("Server configuration error:")
+    assert "poppler missing" in response.json()["detail"]
+
+
+def test_api_parse_pdf_info_not_installed_returns_500():
+    """PDFInfoNotInstalledError from run_parse must return 500 with 'Server configuration error:' detail."""
+    from pdf2image.exceptions import PDFInfoNotInstalledError
+
+    with patch("main.run_parse", side_effect=PDFInfoNotInstalledError("pdfinfo missing")):
+        files = {"file": ("test.pdf", b"%PDF-1.4", "application/pdf")}
+        response = client.post("/parse", files=files)
+
+    assert response.status_code == 500
+    assert response.json()["detail"].startswith("Server configuration error:")
+    assert "pdfinfo missing" in response.json()["detail"]
+
+
+def test_api_parse_pdf_poppler_timeout_returns_500():
+    """PDFPopplerTimeoutError from run_parse must return 500 with 'Server configuration error:' detail."""
+    from pdf2image.exceptions import PDFPopplerTimeoutError
+
+    with patch("main.run_parse", side_effect=PDFPopplerTimeoutError("timed out")):
+        files = {"file": ("test.pdf", b"%PDF-1.4", "application/pdf")}
+        response = client.post("/parse", files=files)
+
+    assert response.status_code == 500
+    assert response.json()["detail"].startswith("Server configuration error:")
+    assert "timed out" in response.json()["detail"]
+
+
+def test_api_parse_pdf_page_count_error_cleans_up_temp_file():
+    """Temp file must be deleted even when PDFPageCountError is raised (finally block)."""
+    from pdf2image.exceptions import PDFPageCountError
+
+    captured_temp_path = []
+
+    def raising_parse(pdf_path):
+        captured_temp_path.append(pdf_path)
+        raise PDFPageCountError("no pages")
+
+    with patch("main.run_parse", side_effect=raising_parse):
+        files = {"file": ("test.pdf", b"%PDF-1.4", "application/pdf")}
+        client.post("/parse", files=files)
+
+    assert len(captured_temp_path) == 1
+    assert not captured_temp_path[0].exists(), "Temp file was not cleaned up after PDFPageCountError"
+
+
+def test_api_parse_pdf_syntax_error_cleans_up_temp_file():
+    """Temp file must be deleted even when PDFSyntaxError is raised (finally block)."""
+    from pdf2image.exceptions import PDFSyntaxError
+
+    captured_temp_path = []
+
+    def raising_parse(pdf_path):
+        captured_temp_path.append(pdf_path)
+        raise PDFSyntaxError("corrupt")
+
+    with patch("main.run_parse", side_effect=raising_parse):
+        files = {"file": ("test.pdf", b"%PDF-1.4", "application/pdf")}
+        client.post("/parse", files=files)
+
+    assert len(captured_temp_path) == 1
+    assert not captured_temp_path[0].exists(), "Temp file was not cleaned up after PDFSyntaxError"
+
+
+def test_api_parse_invalid_pdf_error_detail_includes_exception_message():
+    """The 400 detail string must embed the original exception message verbatim."""
+    from pdf2image.exceptions import PDFPageCountError
+
+    error_msg = "PDF has zero pages"
+    with patch("main.run_parse", side_effect=PDFPageCountError(error_msg)):
+        files = {"file": ("test.pdf", b"%PDF-1.4", "application/pdf")}
+        response = client.post("/parse", files=files)
+
+    detail = response.json()["detail"]
+    assert f"Invalid PDF file: {error_msg}" == detail
+
+
+def test_api_parse_server_config_error_detail_includes_exception_message():
+    """The 500 detail string must embed the original exception message verbatim for config errors."""
+    from pdf2image.exceptions import PopplerNotInstalledError
+
+    error_msg = "Poppler is not installed"
+    with patch("main.run_parse", side_effect=PopplerNotInstalledError(error_msg)):
+        files = {"file": ("test.pdf", b"%PDF-1.4", "application/pdf")}
+        response = client.post("/parse", files=files)
+
+    detail = response.json()["detail"]
+    assert f"Server configuration error: {error_msg}" == detail
