@@ -55,7 +55,6 @@ jobs:
       - name: Run Unit Tests with coverage
         run: mise run test:unit
 
-      # === INTEGRATION TESTS ===
       - name: Run Integration Tests
         run: mise run test:integration
       - name: SonarQube Scan
