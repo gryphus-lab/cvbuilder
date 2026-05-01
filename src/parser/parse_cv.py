@@ -4,11 +4,11 @@ from pathlib import Path
 from typing import Any, Optional
 import pytesseract as pt
 from pdf2image import convert_from_path
+from importlib.resources import files
 
-# Load configuration from project root
-CONFIG_PATH = Path(__file__).resolve().parent.parent.parent / "config.json"
-with open(CONFIG_PATH, encoding="utf-8") as f:
-    CONFIG = json.load(f)
+# Load configuration from parser package
+config_text = files("parser").joinpath("config.json").read_text(encoding="utf-8")
+CONFIG = json.loads(config_text)
 
 SECTION_HEADERS = CONFIG["section_headers"]
 ACHIEVEMENT_KEYWORDS = CONFIG["achievement_keywords"]

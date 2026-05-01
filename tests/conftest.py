@@ -24,8 +24,8 @@ def test_client() -> TestClient:
 def test_pdf(tmp_path: Path) -> Path:
     """Provide a path to a test PDF with minimal valid PDF content."""
     test_pdf_path = tmp_path / "test_cv.pdf"
-    
-    # Create minimal valid PDF
+
+    # Create minimal valid PDF with correct xref offsets
     minimal_pdf = b"""%PDF-1.4
 1 0 obj
 <</Type /Catalog /Pages 2 0 R>>
@@ -38,14 +38,14 @@ endobj
 endobj
 xref
 0 4
-0000000000 65535 f 
-0000000009 00000 n 
-0000000058 00000 n 
-0000000115 00000 n 
+0000000000 65535 f
+0000000009 00000 n
+0000000056 00000 n
+0000000111 00000 n
 trailer
 <</Size 4 /Root 1 0 R>>
 startxref
-214
+180
 %%EOF"""
     test_pdf_path.write_bytes(minimal_pdf)
 
