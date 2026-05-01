@@ -22,14 +22,32 @@ def test_client() -> TestClient:
 
 @pytest.fixture(scope="function")
 def test_pdf(tmp_path: Path) -> Path:
-    """Provide a path to a test PDF (create a dummy one if needed)."""
+    """Provide a path to a test PDF with minimal valid PDF content."""
     test_pdf_path = tmp_path / "test_cv.pdf"
-
-    # Create a minimal dummy PDF for testing if one doesn't exist
-    if not test_pdf_path.exists():
-        # Simple way: create an empty PDF using reportlab or just copy a real one if available
-        # For now, we'll assume you have a test PDF or we'll create a placeholder
-        test_pdf_path.touch()  # placeholder
+    
+    # Create minimal valid PDF
+    minimal_pdf = b"""%PDF-1.4
+1 0 obj
+<</Type /Catalog /Pages 2 0 R>>
+endobj
+2 0 obj
+<</Type /Pages /Kids [3 0 R] /Count 1>>
+endobj
+3 0 obj
+<</Type /Page /Parent 2 0 R /MediaBox [0 0 612 792]>>
+endobj
+xref
+0 4
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+trailer
+<</Size 4 /Root 1 0 R>>
+startxref
+214
+%%EOF"""
+    test_pdf_path.write_bytes(minimal_pdf)
 
     return test_pdf_path
 
