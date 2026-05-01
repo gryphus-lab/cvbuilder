@@ -11,9 +11,7 @@ def test_health_check(test_client: TestClient):
     assert response.json() == {"status": "ok"}
 
 
-@pytest.mark.skip(
-    reason="Requires OCR and a valid PDF, may be slow and not suitable for CI"
-)
+@pytest.mark.integration
 def test_parse_endpoint(test_client: TestClient, test_pdf: Path, clean_results_dir):
     """Test the /parse endpoint with a PDF file."""
     with open(test_pdf, "rb") as f:
@@ -51,9 +49,7 @@ def test_build_endpoint(test_client: TestClient, clean_results_dir):
     ) == "application/pdf" or response.content.startswith(b"%PDF")
 
 
-@pytest.mark.skip(
-    reason="Disabled due to potential issues with file handling and cleanup in CI environments"
-)
+@pytest.mark.integration
 def test_parse_invalid_file(test_client: TestClient):
     """Test error handling for invalid file type."""
     files = {"file": ("test.txt", b"not a pdf", "text/plain")}

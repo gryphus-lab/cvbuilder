@@ -5,6 +5,13 @@ from pathlib import Path
 import shutil
 import asyncio
 import uuid
+from pdf2image.exceptions import (
+    PDFPageCountError,
+    PDFSyntaxError,
+    PopplerNotInstalledError,
+    PDFInfoNotInstalledError,
+    PDFPopplerTimeoutError,
+)
 import main  # Import our updated main.py
 
 app = FastAPI()
@@ -28,18 +35,21 @@ async def healthz():
 @app.post(
     "/parse",
     responses={
+        "400": {
+            "description": "Bad Request - Invalid PDF file",
+            "content": {"application/json": {"example": {"detail": "string"}}},
+        },
         "500": {
             "description": "Internal Server Error",
             "content": {"application/json": {"example": {"detail": "string"}}},
-        }
+        },
     },
 )
 async def api_parse(file: Annotated[UploadFile, File(...)]):
-    # Create unique per-request temp path
     """
     Parse an uploaded PDF and return structured data extracted from it.
 
-    The uploaded file is written to a temporary PDF and passed to the parser; the temporary file is removed before returning. If the parser raises an `HTTPException` it is re-raised unchanged; other exceptions are converted to an `HTTPException` with status code 500 and a `"Parse Error: ..."` detail.
+    The uploaded file is written to a temporary PDF and passed to the parser; the temporary file is removed before returning. If the file is not a valid PDF, returns 400. If the parser raises an `HTTPException` it is re-raised unchanged; other exceptions are converted to an `HTTPException` with status code 500 and a `"Parse Error: ..."` detail.
 
     Returns:
         Parsed data (typically a dict) extracted from the uploaded PDF.
@@ -63,9 +73,23 @@ async def api_parse(file: Annotated[UploadFile, File(...)]):
     except HTTPException:
         # Re-raise HTTPException unchanged
         raise
+    except (PDFPageCountError, PDFSyntaxError) as e:
+        # Invalid PDF file errors
+        raise HTTPException(
+            status_code=400, detail=f"Invalid PDF file: {str(e)}"
+        ) from e
+    except (
+        PopplerNotInstalledError,
+        PDFInfoNotInstalledError,
+        PDFPopplerTimeoutError,
+    ) as e:
+        # Environment/server configuration errors
+        raise HTTPException(
+            status_code=500, detail=f"Server configuration error: {str(e)}"
+        ) from e
     except Exception as e:
-        # Chain other exceptions
-        raise HTTPException(status_code=500, detail=f"Parse Error: {e!s}") from e
+        # Generic parse errors
+        raise HTTPException(status_code=500, detail=f"Parse Error: {str(e)}") from e
     finally:
         temp_pdf.unlink(missing_ok=True)
 
@@ -79,9 +103,7 @@ async def api_parse(file: Annotated[UploadFile, File(...)]):
         }
     },
 )
-async def api_build(
-    cv_data: dict, background_tasks: BackgroundTasks
-):  # Add background_tasks
+async def api_build(cv_data: dict, background_tasks: BackgroundTasks):
     """
     Generate a PDF CV from structured input data.
 

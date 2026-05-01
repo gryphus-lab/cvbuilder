@@ -5,9 +5,9 @@ from typing import Any, Optional
 import pytesseract as pt
 from pdf2image import convert_from_path
 
-# Load configuration from project root
-CONFIG_PATH = Path(__file__).resolve().parent.parent.parent / "config.json"
-with open(CONFIG_PATH, encoding="utf-8") as f:
+# Load configuration from root directory
+config_path = Path(__file__).parent.parent.parent / "config.json"
+with open(config_path, encoding="utf-8") as f:
     CONFIG = json.load(f)
 
 SECTION_HEADERS = CONFIG["section_headers"]
