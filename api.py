@@ -42,7 +42,7 @@ async def healthz():
         "500": {
             "description": "Internal Server Error",
             "content": {"application/json": {"example": {"detail": "string"}}},
-        }
+        },
     },
 )
 async def api_parse(file: Annotated[UploadFile, File(...)]):
@@ -75,10 +75,18 @@ async def api_parse(file: Annotated[UploadFile, File(...)]):
         raise
     except (PDFPageCountError, PDFSyntaxError) as e:
         # Invalid PDF file errors
-        raise HTTPException(status_code=400, detail=f"Invalid PDF file: {str(e)}") from e
-    except (PopplerNotInstalledError, PDFInfoNotInstalledError, PDFPopplerTimeoutError) as e:
+        raise HTTPException(
+            status_code=400, detail=f"Invalid PDF file: {str(e)}"
+        ) from e
+    except (
+        PopplerNotInstalledError,
+        PDFInfoNotInstalledError,
+        PDFPopplerTimeoutError,
+    ) as e:
         # Environment/server configuration errors
-        raise HTTPException(status_code=500, detail=f"Server configuration error: {str(e)}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Server configuration error: {str(e)}"
+        ) from e
     except Exception as e:
         # Generic parse errors
         raise HTTPException(status_code=500, detail=f"Parse Error: {str(e)}") from e
@@ -95,9 +103,7 @@ async def api_parse(file: Annotated[UploadFile, File(...)]):
         }
     },
 )
-async def api_build(
-    cv_data: dict, background_tasks: BackgroundTasks
-):
+async def api_build(cv_data: dict, background_tasks: BackgroundTasks):
     """
     Generate a PDF CV from structured input data.
 
