@@ -5,6 +5,13 @@ from pathlib import Path
 import shutil
 import asyncio
 import uuid
+from pdf2image.exceptions import (
+    PDFPageCountError,
+    PDFSyntaxError,
+    PopplerNotInstalledError,
+    PDFInfoNotInstalledError,
+    PDFPopplerTimeoutError,
+)
 import main  # Import our updated main.py
 
 app = FastAPI()
@@ -66,13 +73,15 @@ async def api_parse(file: Annotated[UploadFile, File(...)]):
     except HTTPException:
         # Re-raise HTTPException unchanged
         raise
+    except (PDFPageCountError, PDFSyntaxError) as e:
+        # Invalid PDF file errors
+        raise HTTPException(status_code=400, detail=f"Invalid PDF file: {str(e)}") from e
+    except (PopplerNotInstalledError, PDFInfoNotInstalledError, PDFPopplerTimeoutError) as e:
+        # Environment/server configuration errors
+        raise HTTPException(status_code=500, detail=f"Server configuration error: {str(e)}") from e
     except Exception as e:
-        error_msg = str(e)
-        # Check if this is a PDF parsing error (invalid file)
-        if any(keyword in error_msg.lower() for keyword in ["trailer", "xref", "syntax error", "page count", "pdf"]):
-            raise HTTPException(status_code=400, detail=f"Invalid PDF file: {error_msg}") from e
-        # Chain other exceptions with 500
-        raise HTTPException(status_code=500, detail=f"Parse Error: {error_msg}") from e
+        # Generic parse errors
+        raise HTTPException(status_code=500, detail=f"Parse Error: {str(e)}") from e
     finally:
         temp_pdf.unlink(missing_ok=True)
 
