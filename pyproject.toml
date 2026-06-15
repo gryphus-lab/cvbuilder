@@ -10,14 +10,14 @@ dependencies = [
     "jinja2>=3.1.6,<4.0",
     "pdf2image>=1.17.0,<2.0",
     "pytesseract>=0.3.13,<1.0",
-    "pytest>=9.0.3",
+    "pytest>=9.1.0",
     "pytest-cov>=6.2.1",
     "python-multipart>=0.0.28",
     "pyyaml>=6.0.3,<7.0",
     "uvicorn[standard]>=0.46.0",
     "weasyprint>=68.1",
 ]
-optional-dependencies = { test = ["pytest>=9.0.3", "pytest-cov>=7.1.0"] }
+optional-dependencies = { test = ["pytest>=9.1.0", "pytest-cov>=7.1.0"] }
 
 [tool.setuptools]
 package-dir = {"" = "src"}
