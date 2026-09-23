@@ -15,7 +15,7 @@ dependencies = [
     "python-multipart>=0.0.28",
     "pyyaml>=6.0.3,<7.0",
     "uvicorn[standard]>=0.46.0",
-    "weasyprint>=68.1",
+    "weasyprint>=69.0",
 ]
 optional-dependencies = { test = ["pytest>=9.0.3", "pytest-cov>=7.1.0"] }
 
