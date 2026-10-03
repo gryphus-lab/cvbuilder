@@ -110,9 +110,14 @@ class TestWorkflowRawContent(unittest.TestCase):
 
     def test_checkout_action_version(self):
         """
-        Verify the workflow specifies the use of the actions/checkout@v6 action for repository checkout.
+        Verify the workflow uses a pinned major version of the actions/checkout
+        action for repository checkout.
+
+        The exact major version is intentionally not asserted so routine
+        Dependabot bumps (e.g. v6 -> v7) do not break this test; mirrors the
+        version-agnostic style used for the mise action.
         """
-        self.assertIn("actions/checkout@v6", self.text)
+        self.assertRegex(self.text, r"actions/checkout@v\d+")
 
     def test_checkout_fetch_depth_zero(self):
         self.assertIn("fetch-depth: 0", self.text)
