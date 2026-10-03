@@ -125,7 +125,9 @@ class TestWorkflowRawContent(unittest.TestCase):
     # ----- Mise setup -----
 
     def test_mise_action_version(self):
-        self.assertIn("jdx/mise-action@v4", self.text)
+        # Major version intentionally not pinned so routine Dependabot bumps
+        # (e.g. v4 -> v5) do not break this test.
+        self.assertRegex(self.text, r"jdx/mise-action@v\d+")
 
     def test_mise_action_install_true(self):
         self.assertIn("install: true", self.text)
