@@ -57,7 +57,23 @@ jobs:
 
       - name: Run Integration Tests
         run: mise run test:integration
+      - name: Check for SonarQube token
+        id: sonar_token
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          if [ -n "$SONAR_TOKEN" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: SonarQube Scan
+        # Dependabot runs cannot read repository secrets, so SONAR_TOKEN is
+        # absent and the scan would 403. Skip the scan when no token is
+        # available (incl. Dependabot), and never let an auth/scan issue block
+        # the pipeline (code quality is advisory, not a merge gate).
+        if: ${{ github.actor != 'dependabot[bot]' && steps.sonar_token.outputs.available == 'true' }}
+        continue-on-error: true
         uses: SonarSource/sonarqube-scan-action@v8
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
