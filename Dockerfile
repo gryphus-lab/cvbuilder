@@ -1,5 +1,5 @@
 # 1. Build Stage
-FROM python:3.14-slim AS builder
+FROM python:3.15-slim AS builder
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /app
@@ -12,7 +12,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 
 # 2. Runtime Stage
-FROM python:3.14-slim AS runtime
+FROM python:3.15-slim AS runtime
 
 # Set security and performance environment variables
 ENV PYTHONUNBUFFERED=1 \
