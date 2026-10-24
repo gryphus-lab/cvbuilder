@@ -13,6 +13,18 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "daily"
+    ignore:
+      # Don't bump the Python base image to a new major/minor until the wheel
+      # ecosystem has caught up. The build installs wheels only (uv sync
+      # --no-build), and a brand-new/pre-release CPython (e.g. 3.15) has no
+      # cp3xx wheels yet for direct deps like PyYAML, so the image build fails
+      # with "marked as --no-build but has no binary distribution". Patch-level
+      # base-image bumps are still allowed. Bump the Python minor deliberately
+      # once wheels exist, not via Dependabot.
+      - dependency-name: "python"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
   - package-ecosystem: "docker-compose" # See documentation for possible values
     directory: "/" # Location of package manifests
     schedule:
