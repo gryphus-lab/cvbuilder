@@ -39,9 +39,13 @@ jobs:
             libcairo2 \
             libpango-1.0-0 \
             libpangocairo-1.0-0 \
-            libgdk-pixbuf2.0-0 \
             libffi-dev \
             gcc
+          # WeasyPrint needs the gdk-pixbuf runtime. The package was renamed on
+          # newer Ubuntu runners (24.04 'libgdk-pixbuf2.0-0' -> 26.x
+          # 'libgdk-pixbuf-xlib-2.0-0'), so install whichever name is available.
+          sudo apt-get install -y --no-install-recommends libgdk-pixbuf-xlib-2.0-0 \
+            || sudo apt-get install -y --no-install-recommends libgdk-pixbuf2.0-0
       - name: Check setup
         run: |
           mise --version
